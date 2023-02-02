@@ -161,6 +161,11 @@ class TestReader:
         self.soft = False
         self.deferrable = False
         self.optional = False
+        self.stop = False
+        self.wait = False
+        self.only = False
+        if ';>>> only=True' in self.data:
+            self.wait = True
 
     def next(self):
         self.msg = None
@@ -183,6 +188,12 @@ class TestReader:
                 exec(line[5:], {}, settings)
                 if 'soft' in settings:
                     self.soft = settings['soft']
+                if 'only' in settings:
+                    self.only = True
+                    return True
+                if 'stop' in settings:
+                    self.stop = "\n*** STOP TESTING ***"
+                    return True
                 if 'deferrable' in settings and settings['deferrable']:
                     self.deferrable = "\nSkipping deferrable and optional tests"
                     return True
@@ -268,6 +279,13 @@ class TestTimeout(Exception):
     pass
 
 while t.next():
+    if t.wait and not t.only:
+        continue
+
+    if t.stop:
+        log(t.stop)
+        break
+
     if args.deferrable == False and t.deferrable:
         log(t.deferrable)
         break
@@ -327,6 +345,8 @@ while t.next():
         log("\nException: %s" % repr(exc))
         log("Output before exception:\n%s" % r.buf)
         sys.exit(1)
+    if t.only:
+        break
 
 if len(failures) > 0:
     log("\nFAILURES:")
