@@ -15,7 +15,7 @@ endif
 
 default:
 
-test: test-0 test-1 test-2 test-3
+test: test-0 test-1 test-2 test-3 test-4
 
 test-%:
 	@$(MAKE) --no-print-directory -C $(ROOT) test^yamlscript^step$(@:test-%=%) \
