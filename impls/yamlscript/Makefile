@@ -12,12 +12,24 @@ export DEFERRABLE := 1
 export OPTIONAL := 1
 endif
 
+ALL_TESTS := \
+    test-0 \
+    test-1 \
+    test-2 \
+    test-3 \
+    test-4 \
+
 
 default:
 
-test: test-0 test-1 test-2 test-3 test-4
+.PHONY: test
+test:
+	$(MAKE) test-all ALL=$(ALL) |& \
+	    grep -E '(^TEST RESULTS|: .* tests$$)'
 
-test-%:
+test-all: $(ALL_TESTS)
+
+$(ALL_TESTS):
 	@$(MAKE) --no-print-directory -C $(ROOT) test^yamlscript^step$(@:test-%=%) \
 	    DEFERRABLE=$(DEFERRABLE) OPTIONAL=$(OPTIONAL)
 
