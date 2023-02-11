@@ -5,9 +5,7 @@ BASE := $(shell pwd)
 
 export PERL5LIB := $(BASE)/lib
 
-DEFERRABLE ?=
-OPTIONAL ?=
-ifdef ALL
+ifndef BASIC
 export DEFERRABLE := 1
 export OPTIONAL := 1
 endif
@@ -19,7 +17,7 @@ default:
 
 .PHONY: test
 test:
-	$(MAKE) test-all ALL=$(ALL) |& \
+	$(MAKE) test-all BASIC=$(BASIC) |& \
 	    grep -E '(^TEST RESULTS|: .* tests$$)'
 
 test-all: $(ALL_TESTS)
