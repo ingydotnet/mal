@@ -10,7 +10,7 @@ export DEFERRABLE := 1
 export OPTIONAL := 1
 endif
 
-ALL_TESTS := $(shell echo test-{0..6})
+ALL_TESTS := $(shell echo test-{0..7})
 
 
 default:
