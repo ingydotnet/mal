@@ -8,4 +8,7 @@
   hash-map keys keyword keyword? list list? map map? meta nil?
   nth number? pr-str println prn read-string readline reset! rest seq
   sequential? slurp str string? swap! symbol symbol? throw time-ms
-  true? vals vec vector vector? with-meta])
+  true? vals vec vector vector? with-meta
+  XXX WWW ZZZ
+  *ARGV* *file*
+  ])
