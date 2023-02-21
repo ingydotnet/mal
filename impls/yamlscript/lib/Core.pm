@@ -241,6 +241,10 @@ sub prn { printf "%s\n", join ' ', map Printer::pr_str($_), @_; nil }
 
 sub range {
     my ($x, $y) = @_;
+    if (not defined $y) {
+        $y = $x;
+        $x = number(0);
+    }
     if ($y < $x) {
         list([map number($_), reverse(($y+1)..$x)]);
     } else {
