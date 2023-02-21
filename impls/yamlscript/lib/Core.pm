@@ -82,7 +82,9 @@ sub add { $_[0] + $_[1] }
 sub apply {
     my ($fn, @args) = @_;
     push @args, @{pop(@args)};
-    ref($fn) eq 'CODE' ? $fn->(@args) : Eval::eval($fn->(@args));
+    ref($fn) eq 'CODE'
+        ? $fn->(@args)
+        : Eval::eval($fn->(@args));
 }
 
 sub assoc {
@@ -247,8 +249,8 @@ sub range {
 }
 
 sub readline_ {
-    print($_[0]);
-    my $l = readline(STDIN);
+    require ReadLine;
+    my $l = ReadLine::readline($_[0], $REPL::env) // return;
     chomp $l;
     string($l);
 }
@@ -260,8 +262,7 @@ sub reset { $_[0]->[0] = $_[1] }
 sub rest {
     my ($list) = @_;
     return list([]) if $list->isa('nil') or not @$list;
-    shift @$list;
-    list([@$list]);
+    list([@{$list}[1..(@$list-1)]]);
 }
 
 sub seq {
