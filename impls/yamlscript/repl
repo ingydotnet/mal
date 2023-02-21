@@ -10,24 +10,36 @@ use Getopt::Long;
 
 my $shell;
 my $eval = '';
+my $run = '';
 
 GetOptions (
     "shell" => \$shell,
     "eval=s" => \$eval,
 ) or die("Error in command line arguments\n");
 
+if (@ARGV) {
+    $run = $ARGV[0];
+} else {
+    unshift @ARGV, 'NO_SOURCE_PATH';
+}
+
 require REPL;
 
 if ($eval) {
     if ($shell) {
         REPL::rep(qq<(do $eval)>);
+        REPL->repl;
     } else {
         REPL::rep(qq<(prn (do $eval))>);
     }
-} elsif (@ARGV) {
-    my $file = shift;
-    -f $file or die "No such file '$file'";
-    REPL::rep(qq<(load-file "$file")>);
-}
 
-REPL->repl if $shell;
+} elsif ($shell) {
+    REPL->repl;
+
+} elsif ($run) {
+    -f $run or die "No such file '$run'";
+    REPL::rep(qq<(load-file "$run")>);
+
+} else {
+    REPL->repl;
+}
