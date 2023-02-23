@@ -6,4 +6,4 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 cd "$root"
 
-exec "./repl" ./ys.ys "$@"
+exec "../perl.2/repl" lib/ys.mal "$@"

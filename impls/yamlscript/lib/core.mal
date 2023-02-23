@@ -9,6 +9,8 @@
   nth number? pr-str println prn read-string readline reset! rest seq
   sequential? slurp str string? swap! symbol symbol? throw time-ms
   true? vals vec vector vector? with-meta
-  XXX WWW ZZZ
+
   *ARGV* *file*
+  XXX WWW YYY ZZZ
+  dec join num range
   ])
