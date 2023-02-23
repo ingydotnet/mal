@@ -10,6 +10,8 @@ export DEFERRABLE := 1
 export OPTIONAL := 1
 endif
 
+IMPL ?= yamlscript
+
 ALL_TESTS := $(shell echo test-{{0..9},A})
 
 
@@ -23,7 +25,7 @@ test:
 test-all: $(ALL_TESTS)
 
 $(ALL_TESTS):
-	$(MAKE) --no-print-directory -C $(ROOT) test^yamlscript^step$(@:test-%=%) \
+	$(MAKE) --no-print-directory -C $(ROOT) test^$(IMPL)^step$(@:test-%=%) \
 	    DEFERRABLE=$(DEFERRABLE) OPTIONAL=$(OPTIONAL)
 
 clean:
