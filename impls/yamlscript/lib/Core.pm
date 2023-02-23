@@ -57,6 +57,7 @@ sub ns {
         'range' => \&range,
         'readline' => \&readline_,
         'read-string' => \&read_string,
+        'read-ys' => \&read_ys,
         'reset!' => \&reset,
         'rest' => \&rest,
         'seq' => \&seq,
@@ -267,6 +268,11 @@ sub readline_ {
 }
 
 sub read_string { Reader::read_str(@_) }
+
+sub read_ys {
+    require YSReader;
+    YSReader::read_file(@_);
+}
 
 sub reset { $_[0]->[0] = $_[1] }
 

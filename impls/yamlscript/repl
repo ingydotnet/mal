@@ -38,7 +38,11 @@ if ($eval) {
 
 } elsif ($run) {
     -f $run or die "No such file '$run'";
-    REPL::rep(qq<(load-file "$run")>);
+    $run =~ /\.mal$/ ?
+        REPL::rep(qq<(load-file "$run")>) :
+    $run =~ /\.ys$/ ?
+        REPL::rep(qq<(eval (read-ys (slurp "$run") "$run"))>) :
+    die "Don't know how to run '$run'";
 
 } else {
     REPL->repl;
