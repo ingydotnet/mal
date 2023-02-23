@@ -49,6 +49,7 @@ sub ns {
         'meta' => \&meta,
         'nil?' => \&nil_q,
         'nth' => \&nth,
+        'num' => \&num,
         'number?' => \&number_q,
         'pr-str' => \&pr_str,
         'println' => \&println,
@@ -234,6 +235,8 @@ sub nth {
     die "Index '$index' out of range" if $index >= @$list;
     $list->[$index];
 }
+
+sub num { number("$_[0]") }
 
 sub number_q { boolean(ref($_[0]) eq "number") }
 
