@@ -10,7 +10,7 @@ export DEFERRABLE := 1
 export OPTIONAL := 1
 endif
 
-IMPL ?= yamlscript
+IMPL ?= perl.2
 
 ALL_TESTS := $(shell echo test-{{0..9},A})
 
