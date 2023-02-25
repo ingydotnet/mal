@@ -17,7 +17,8 @@ our @event_keys = (qw<
     type
     bpos blin bcol
     epos elin ecol
-    anch ytag styl valu
+    anch ytag styl
+    valu
 >);
 
 use Reader;
@@ -26,9 +27,6 @@ use Reader;
 #------------------------------------------------------------------------------
 sub read_file {
     my ($text, $file) = @_;
-
-#     XXX my $AST = Reader::read_str("(do\n$text\nnil)");
-#     return $AST;
 
     %events = ();
     %functions = ();
@@ -61,6 +59,14 @@ sub read_file {
 # AST Implicit Typing Methods
 #------------------------------------------------------------------------------
 
+my $E_GROUP = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t-\t-");
+my $E_PLAIN = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t:\t-");
+my $E_QUOTE = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t'\t-");
+sub MAP { 'map'->new($E_GROUP, @_) }
+sub SEQ { 'seq'->new($E_GROUP, @_) }
+sub VAL { 'val'->new($E_PLAIN, @_) }
+sub STR { 'val'->new($E_QUOTE, @_) }
+
 sub S { symbol($_[0]) }
 sub L { list([@_]) }
 sub N { number(@_) }
@@ -76,8 +82,7 @@ sub LET { S 'let*' }
 # my $AN = qr<[a-zA-Z0-9]>;
 # my $W = qr<[-a-zA-Z0-9]>;
 # my $sym = qr<$A$W+>;
-my $sym = qr/[-\w]+/;
-my $fake_event = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t-\t-");
+my $sym = qr/[-_\w]+\??/;
 
 
 use Carp qw< confess >;
@@ -113,6 +118,13 @@ sub mal_ast($n) {
     if (is_val($n)) {
         my $text = $n->{text};
         $n->{text} = "(do\n$text\nnil)";
+    }
+    elsif (is_seq($n)) {
+      $n = MAP(
+        VAL('main()') => MAP(
+          VAL('do:') => SEQ(elems($n)),
+        )
+      );
     }
     my $ast = get_form($n);
 
@@ -196,7 +208,8 @@ sub try_val_form($n) {
 
 sub try_mal_form($n) {
     my ($t) = $n->{text};
-    return unless $t =~ /^\(/;
+    return unless $t =~ /^[(\\]/;
+    $t =~ s/^\\//;
     Reader::read_str($t);
 }
 
@@ -206,11 +219,11 @@ sub try_scalar_form($n) {
 
 sub try_defn($n) {
     my ($key, $value) = @$n;
-    text($key) =~ /^(\w+)\((.*)\)$/ or return;
+    text($key) =~ /^($sym)\((.*)\)$/ or return;
     my $name = S($1);
     my $sig = L(map symbol($_), split /\s+/, $2);
     my $defn = L( DEF, S($1), L( FN, L, nil ) );
-    my $seq = is_seq($value) ? $value : 'seq'->new($fake_event, $value);
+    my $seq = is_seq($value) ? $value : SEQ($value);
     my @body =
         try_let($seq) //
         map get_form($_), @{$seq->elem};
@@ -407,9 +420,9 @@ sub compose_ali {
         my ($class, $event) = @_;
         my $self = bless {
             name => $event->{valu},
-            meta => $event,
         }, $class;
         delete $event->{valu};
+        $events{Scalar::Util::refaddr($self)} = $event;
         return $self;
     }
 }
