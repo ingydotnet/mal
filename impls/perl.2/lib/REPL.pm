@@ -25,12 +25,11 @@ rep('
             true)))');
 rep('
     (def! load-file (fn* (f)
-        (eval (
-            read-string (
-                str
-                    "(do "
-                    (slurp f)
-                    "\nnil)")))))');
+      (cond
+        (ends-with? f ".mal")
+          (eval (read-string (str "(do " (slurp f) "\nnil)")))
+        (ends-with? f ".ys")
+          (eval (read-file-ys f)))))');
 rep(q[
     (defmacro! cond (fn* (& xs)
         (if (> (count xs) 0)

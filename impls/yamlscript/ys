@@ -6,4 +6,8 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 cd "$root"
 
-exec "../perl.2/repl" lib/ys.mal "$@"
+if [[ ${impl-} == p* ]]; then
+  perl "$root/../perl.2/repl" "$@"
+else
+  perl "$root/../perl.2/repl" ./lib/ys.ys "$@"
+fi

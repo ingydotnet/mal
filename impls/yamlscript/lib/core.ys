@@ -12,5 +12,5 @@
 
   *ARGV* *file*
   XXX WWW YYY ZZZ
-  dec join num range
+  dec ends-with? join num range read-file-ys
   ])

@@ -2,8 +2,9 @@
 
 use v5.12;
 
+use Cwd;
 use FindBin qw($Bin);
-use lib "$Bin/lib";
+use lib Cwd::abs_path("$Bin/../perl.2/lib");
 use Getopt::Long;
 
 @ARGV = ('--shell') unless @ARGV;
@@ -41,7 +42,7 @@ if ($eval) {
     $run =~ /\.mal$/ ?
         REPL::rep(qq<(load-file "$run")>) :
     $run =~ /\.ys$/ ?
-        REPL::rep(qq<(eval (read-ys (slurp "$run") "$run"))>) :
+        REPL::rep(qq<(load-file "$run"))>) :
     die "Don't know how to run '$run'";
 
 } else {

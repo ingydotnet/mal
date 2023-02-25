@@ -32,6 +32,7 @@ sub ns {
         'deref' => \&deref,
         'dissoc' => \&dissoc,
         'empty?' => \&empty_q,
+        'ends-with?' => \&ends_with_q,
         'false?' => \&false_q,
         'first' => \&first,
         'fn?' => \&fn_q,
@@ -43,6 +44,7 @@ sub ns {
         'keyword?' => \&keyword_q,
         'list' => \&list_,
         'list?' => \&list_q,
+        'read-file-ys' => \&read_file_ys,
         'macro?' => \&macro_q,
         'map' => \&map_,
         'map?' => \&map_q,
@@ -57,7 +59,6 @@ sub ns {
         'range' => \&range,
         'readline' => \&readline_,
         'read-string' => \&read_string,
-        'read-ys' => \&read_ys,
         'reset!' => \&reset,
         'rest' => \&rest,
         'seq' => \&seq,
@@ -146,6 +147,14 @@ sub divide { $_[0] / $_[1] }
 
 sub empty_q { boolean(@{$_[0]} == 0) }
 
+sub ends_with_q {
+    my ($str, $substr) = @_;
+    boolean(
+      length($str) >= length($substr) and
+      substr($str, 0-length($substr)) eq $substr
+    );
+}
+
 sub equal_to {
     my ($x, $y) = @_;
     return false
@@ -219,6 +228,14 @@ sub list_ { list([@_]) }
 
 sub list_q { boolean(ref($_[0]) eq 'list') }
 
+sub read_file_ys {
+    my ($file) = @_;
+    my $text = slurp($file);
+    require YSReader;
+    my $ast = YSReader::read_file($text, $file);
+    return $ast;
+}
+
 sub macro_q { boolean(ref($_[0]) eq 'macro') }
 
 sub map_ { list([ map apply($_[0], $_, []), @{$_[1]} ]) }
@@ -268,11 +285,6 @@ sub readline_ {
 }
 
 sub read_string { Reader::read_str(@_) }
-
-sub read_ys {
-    require YSReader;
-    YSReader::read_file(@_);
-}
 
 sub reset { $_[0]->[0] = $_[1] }
 

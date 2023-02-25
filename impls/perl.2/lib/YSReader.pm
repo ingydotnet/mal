@@ -20,11 +20,15 @@ our @event_keys = (qw<
     anch ytag styl valu
 >);
 
+use Reader;
 #------------------------------------------------------------------------------
 # Convert YAMLScript into a Mal Lisp AST
 #------------------------------------------------------------------------------
 sub read_file {
     my ($text, $file) = @_;
+
+#     XXX my $AST = Reader::read_str("(do\n$text\nnil)");
+#     return $AST;
 
     %events = ();
     %functions = ();
@@ -108,7 +112,7 @@ sub first_pair($n) { assert_pairs($n); (pairs($n))[0] }
 sub mal_ast($n) {
     if (is_val($n)) {
         my $text = $n->{text};
-        $n->{text} = "(do\n$text\n)";
+        $n->{text} = "(do\n$text\nnil)";
     }
     my $ast = get_form($n);
 
