@@ -44,8 +44,9 @@ rep(q[
         (str
             "Mal ["
             *host-language*
-            "]"))]);
-$::x = 1;
+            "]"))])
+    unless $ENV{MAL_IMPL} or $ENV{STEP};
+
 sub repl {
     while (defined (my $line = readline($prompt, $env))) {
         try($line) if length $line;
