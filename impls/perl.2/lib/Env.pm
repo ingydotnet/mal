@@ -47,9 +47,8 @@ sub find {
 
 sub get {
     my ($self, $key) = @_;
-    local $Carp::RefArgFormatter = sub { require Data::Dumper; Data::Dumper::Dump($_[0]) };
     my $env = $self->find($key) or
-        ZZZ "'$key' not found\n";
+        die "'$key' not found\n";
     $env->{stash}{$key};
 }
 
