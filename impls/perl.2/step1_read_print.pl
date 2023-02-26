@@ -3,6 +3,7 @@ use v5.12;
 use Term::ReadLine;
 my $tty = Term::ReadLine->new('');
 
+use lib 'lib';
 use Reader;
 use Printer;
 
