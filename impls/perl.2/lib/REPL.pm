@@ -14,7 +14,7 @@ our $env = Env->new->add(Core::ns);
 
 $env->set('*file*', string($ARGV[0]));
 $env->set('*ARGV*', list([map string($_), @ARGV[1..$#ARGV]]));
-$env->set('*host-language*', string('yamlscript'));
+$env->set('*host-language*', string('perl.2'));
 $env->set(eval => sub { Eval::eval($_[0], $env) });
 
 # Define: `not`, 'load-file` and `cond`:
@@ -39,6 +39,12 @@ rep(q[
                     (throw "odd number of forms to cond")
                 )
                 (cons 'cond (rest (rest xs)))))))]);
+rep(q[
+    (println
+        (str
+            "Mal ["
+            *host-language*
+            "]"))]);
 $::x = 1;
 sub repl {
     while (defined (my $line = readline($prompt, $env))) {
