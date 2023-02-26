@@ -21,11 +21,6 @@ our @event_keys = (qw<
     valu
 >);
 
-sub PPP {
-    require Printer;
-    XXX Printer::pr_str @_;
-}
-
 use Reader;
 #------------------------------------------------------------------------------
 # Convert YAMLScript into a Mal Lisp AST

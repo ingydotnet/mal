@@ -19,6 +19,7 @@ our @EXPORT = qw<
     true
     vector
 
+    PPP
     WWW
     XXX
     YYY
@@ -41,6 +42,7 @@ sub WWW { require XXX; goto &XXX::WWW }
 sub XXX { require XXX; goto &XXX::XXX }
 sub YYY { require XXX; goto &XXX::YYY }
 sub ZZZ { require XXX; goto &XXX::ZZZ }
+sub PPP { require Printer; XXX(Printer::pr_str(@_)) }
 
 
 #------------------------------------------------------------------------------

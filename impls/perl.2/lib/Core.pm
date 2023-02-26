@@ -19,6 +19,7 @@ sub ns {
         '=' => \&equal_to,
         '>' => \&greater_than,
         '>=' => \&greater_equal,
+
         'apply' => \&apply,
         'assoc' => \&assoc,
         'atom' => \&atom_,
@@ -77,10 +78,12 @@ sub ns {
         'vector' => \&vector_,
         'vector?' => \&vector_q,
         'with-meta' => \&with_meta,
-        'WWW' => \&www,
-        'XXX' => \&xxx,
-        'YYY' => \&yyy,
-        'ZZZ' => \&zzz,
+
+        'PPP' => \&PPP,
+        'WWW' => \&WWW,
+        'XXX' => \&XXX,
+        'YYY' => \&YYY,
+        'ZZZ' => \&ZZZ,
     }
 }
 
@@ -353,26 +356,6 @@ sub with_meta {
     $o = ref($o) eq 'CODE' ? sub { goto &$o } : $o->clone;
     $meta{$o} = $m;
     $o;
-}
-
-sub www {
-    require XXX;
-    XXX::WWW(@_);
-}
-
-sub xxx {
-    require XXX;
-    XXX::XXX(@_);
-}
-
-sub yyy {
-    require XXX;
-    XXX::YYY(@_);
-}
-
-sub zzz {
-    require XXX;
-    XXX::ZZZ(@_);
 }
 
 1;
