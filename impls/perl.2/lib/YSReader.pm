@@ -21,6 +21,11 @@ our @event_keys = (qw<
     valu
 >);
 
+sub PPP {
+    require Printer;
+    XXX Printer::pr_str @_;
+}
+
 use Reader;
 #------------------------------------------------------------------------------
 # Convert YAMLScript into a Mal Lisp AST
@@ -62,6 +67,7 @@ sub read_file {
 my $E_GROUP = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t-\t-");
 my $E_PLAIN = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t:\t-");
 my $E_QUOTE = 'event'->new("=xxx\t-1\t-1\t-1\t-1\t-1\t-1\t-\t-\t'\t-");
+sub PAIR { 'pair'->new(@_) }
 sub MAP { 'map'->new($E_GROUP, @_) }
 sub SEQ { 'seq'->new($E_GROUP, @_) }
 sub VAL { 'val'->new($E_PLAIN, @_) }
@@ -85,30 +91,31 @@ sub LET { S 'let*' }
 my $sym = qr/[-_\w]+\??/;
 
 
-use Carp qw< confess >;
-sub error($m) { confess "YS Error: $m\n" }
+sub error($m) { die "YS Error: $m\n" }
 sub event($n) { $events{refaddr($n)} }
 sub style($n) { event($n)->{styl} }
 sub is_map($n) { ref($n) eq 'map' }
 sub is_seq($n) { ref($n) eq 'seq' }
 sub is_val($n) { ref($n) eq 'val' }
+sub is_pair($n) { ref($n) eq 'pair' }
 sub is_plain($n) { is_val($n) and style($n) eq ':' }
+sub is_single($n) { is_map($n) and pairs($n) == 1 }
 sub is_assign($n) {
-    return unless is_map($n);
-    @{pairs($n)} == 1 and text(key(first_pair($n))) =~ /^$sym\s+=$/;
+  is_single($n) and
+  text(key(first_pair($n))) =~ /^$sym\s+=$/;
 }
 sub assert_map($n) { is_map($n) or ZZZ($n) }
 sub assert_seq($n) { is_seq($n) or ZZZ($n) }
 sub assert_val($n) { is_val($n) or ZZZ($n) }
 sub assert_plain($n) { is_plain($n) or ZZZ($n) }
-sub assert_pair($n) { XXX $n }
+sub assert_pair($n) { is_pair($n) or ZZZ($n) }
 sub assert_elems($n) { assert_seq($n); @{$n->elem} > 0 or ZZZ($n) }
-sub assert_pairs($n) { assert_map($n); @$n > 0 or ZZZ($n) }
+sub assert_pairs($n) { assert_map($n); @{$n->pair} > 0 or ZZZ($n) }
 sub pairs($n) { assert_map($n); @{$n->pair} }
 sub elems($n) { assert_seq($n); @{$n->elem} }
-sub get_key_val($n) { assert_map($n); @{$n->pair} }
 sub key($p) { assert_pair($p); $p->key }
 sub val($p) { assert_pair($p); $p->val }
+sub key_val($p) { assert_pair($p); @$p }
 sub text($v) { assert_val($v); $v->{text} }
 sub first_elem($n) { assert_elems($n); (elems($n))[0] }
 sub first_pair($n) { assert_pairs($n); (pairs($n))[0] }
@@ -121,9 +128,7 @@ sub mal_ast($n) {
     }
     elsif (is_seq($n)) {
       $n = MAP(
-        VAL('main()') => MAP(
-          VAL('do:') => SEQ(elems($n)),
-        )
+        PAIR( VAL('main()') => SEQ(elems($n)) ),
       );
     }
     my $ast = get_form($n);
@@ -140,25 +145,32 @@ sub mal_ast($n) {
 }
 
 sub get_form($n) {
-    if (is_map($n)) {
-        # try_call($n) //
-        try_module($n) //
-        try_hash($n) //
-        XXX $n;
+    my $ast = do {
+        if (is_map($n)) {
+            try_assign($n) //
+            try_call($n) //
+            try_module($n) //
+            try_hash($n) //
+            XXX $n;
+        }
+        elsif (is_seq($n)) {
+        # try_let($n) //
+            try_do($n) //
+            XXX $n;
+        }
+        elsif (is_val($n)) {
+            try_mal_form($n) //
+            try_scalar_form($n) //
+            XXX $n;
+        }
+        else {
+            XXX $n;
+        }
+    };
+    if (ref($ast) eq 'list' and @$ast == 2 and ref($ast->[0]) eq 'symbol' and "$ast->[0]" eq 'do') {
+        $ast = $ast->[1];
     }
-    elsif (is_seq($n)) {
-        try_let($n) //
-        try_do($n) //
-        XXX $n;
-    }
-    elsif (is_val($n)) {
-        try_mal_form($n) //
-        try_scalar_form($n) //
-        XXX $n;
-    }
-    else {
-        XXX $n;
-    }
+    $ast;
 }
 
 sub try_module($n) {
@@ -177,10 +189,20 @@ sub try_module($n) {
 }
 
 sub try_call($n) {
-    @{pairs($n)} == 1 or return;
-    get_key_val($1) =~ /^$sym:/ or return;
-    XXX $n;
-    return;
+    is_single($n) or return;
+    my $p = first_pair($n);
+    my ($key, $val) = key_val($p);
+    "$key" =~ /^$sym\s*:$/ or return;
+    $key =~ s/:$//;
+    my $op = S($key);
+    if (is_val $val) {
+        my $ast = get_form VAL "( $val\n)";
+        unshift @$ast, $op;
+        return $ast;
+    }
+    else {
+        XXX $val, "Unknown call value";
+    }
 }
 
 sub try_let($n) {
@@ -207,14 +229,21 @@ sub try_val_form($n) {
 }
 
 sub try_mal_form($n) {
-    my ($t) = $n->{text};
-    return unless $t =~ /^[(\\]/;
-    $t =~ s/^\\//;
-    Reader::read_str($t);
+    my $string = "$n";
+    return unless $string =~ /^([(\\]|-?\d+$)/;
+    $string =~ s/^\\//;
+    Reader::read_str($string);
 }
 
 sub try_scalar_form($n) {
     $n->{text};
+}
+
+sub try_assign($n) {
+    is_assign($n) or return;
+    my ($key, $val) = key_val(first_pair($n));
+    (my $sym = "$key") =~ s/\s=$//;
+    L( DEF, S($sym), get_form($val) );
 }
 
 sub try_defn($n) {
@@ -225,7 +254,7 @@ sub try_defn($n) {
     my $defn = L( DEF, S($1), L( FN, L, nil ) );
     my $seq = is_seq($value) ? $value : SEQ($value);
     my @body =
-        try_let($seq) //
+    #try_let($seq) //
         map get_form($_), @{$seq->elem};
     return L(DEF, $name, L(FN, $sig, @body));
 }
@@ -238,20 +267,24 @@ sub try_def($n) {
     return L(DEF, $sym, $rhs);
 }
 
+sub is_main($n) {
+    ref($n) eq 'list' and
+    @$n == 3 and
+    ref($n->[0]) eq 'symbol' and
+    $n->[0] eq 'def!' and
+    ref($n->[1]) eq 'symbol' and
+    $n->[1] eq 'main' and
+    ref($n->[2]) eq 'list' and
+    @{$n->[2]} >= 3 and
+    $n->[2][0] eq 'fn*' and
+    1;
+}
+
 sub has_main($ast) {
+    return 1 if is_main($ast);
     return 0 unless ref($ast) eq 'list';
     for my $node (@$ast) {
-        return 1 if
-            ref($node) eq 'list' and
-            @$node == 3 and
-            ref($node->[0]) eq 'symbol' and
-            $node->[0] eq 'def!' and
-            ref($node->[1]) eq 'symbol' and
-            $node->[1] eq 'main' and
-            ref($node->[2]) eq 'list' and
-            @{$node->[2]} >= 3 and
-            $node->[2][0] eq 'fn*' and
-            1;
+        return 1 if is_main($node);
     }
     return 0;
 }
@@ -348,7 +381,7 @@ sub compose_ali {
         bless [$key, $value], $class;
     }
     sub key($p) { $p->[0] }
-    sub val($p) { $p->[1] }
+    sub val($p) { XXX $p->[1] }
 }
 
 {
@@ -392,7 +425,7 @@ sub compose_ali {
 
 {
     package val;
-    use overload '""' => sub($n) { $n->{text} };
+    use overload '""' => sub { $_[0]->{text} };
     my %escapes = (
         'n' => "\n",
         't' => "\t",
@@ -400,8 +433,8 @@ sub compose_ali {
         '"' => '"',
     );
     sub new {
-        my ($class, $event) = @_;
-        my $text = $event->{valu};
+        my ($class, $event, $text) = @_;
+        $text //= $event->{valu};
         $text =~ s/\\([nt\\\"])/$escapes{$1}/g;
         my $self = bless {
             text => $text,
