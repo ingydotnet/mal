@@ -29,14 +29,17 @@ sub ns {
         'cons' => \&cons,
         'contains?' => \&contains_q,
         'count' => \&count,
+        'dec' => \&dec,
         'deref' => \&deref,
         'dissoc' => \&dissoc,
         'empty?' => \&empty_q,
+        'ends-with?' => \&ends_with_q,
         'false?' => \&false_q,
         'first' => \&first,
         'fn?' => \&fn_q,
         'get' => \&get,
         'hash-map' => \&hash_map_,
+        'join' => \&join_,
         'keys' => \&keys,
         'keyword' => \&keyword_,
         'keyword?' => \&keyword_q,
@@ -48,11 +51,12 @@ sub ns {
         'meta' => \&meta,
         'nil?' => \&nil_q,
         'nth' => \&nth,
+        'number' => \&number_,
         'number?' => \&number_q,
         'pr-str' => \&pr_str,
         'println' => \&println,
         'prn' => \&prn,
-        'readline' => \&readline_,
+        'range' => \&range,
         'read-string' => \&read_string,
         'readline' => \&readline_,
         'reset!' => \&reset,
@@ -60,8 +64,8 @@ sub ns {
         'seq' => \&seq,
         'sequential?' => \&sequential_q,
         'slurp' => \&slurp,
-        'string?' => \&string_q,
         'str' => \&str,
+        'string?' => \&string_q,
         'swap!' => \&swap,
         'symbol' => \&symbol_,
         'symbol?' => \&symbol_q,
@@ -69,10 +73,16 @@ sub ns {
         'time-ms' => \&time_ms,
         'true?' => \&true_q,
         'vals' => \&vals,
+        'vec' => \&vec,
         'vector' => \&vector_,
         'vector?' => \&vector_q,
-        'vec' => \&vec,
         'with-meta' => \&with_meta,
+
+        'PPP' => \&PPP,
+        'WWW' => \&WWW,
+        'XXX' => \&XXX,
+        'YYY' => \&YYY,
+        'ZZZ' => \&ZZZ,
     }
 }
 
@@ -121,6 +131,8 @@ sub contains_q {
 
 sub count { number(ref($_[0]) eq 'nil' ? 0 : scalar @{$_[0]}) }
 
+sub dec { number($_[0] - 1) }
+
 sub deref { $_[0]->[0] }
 
 sub dissoc {
@@ -136,6 +148,14 @@ sub dissoc {
 sub divide { $_[0] / $_[1] }
 
 sub empty_q { boolean(@{$_[0]} == 0) }
+
+sub ends_with_q {
+    my ($str, $substr) = @_;
+    boolean(
+      length($str) >= length($substr) and
+      substr($str, 0-length($substr)) eq $substr
+    );
+}
 
 sub equal_to {
     my ($x, $y) = @_;
@@ -186,6 +206,8 @@ sub greater_than { $_[0] > $_[1] }
 
 sub hash_map_ { hash_map([@_]) }
 
+sub join_ { string(join ${str($_[0])}, map ${str($_)}, @{$_[1]}) }
+
 sub keys {
     my ($map) = @_;
     my @keys = map {
@@ -226,6 +248,8 @@ sub nth {
     $list->[$index];
 }
 
+sub number_ { number("$_[0]" + 0) }
+
 sub number_q { boolean(ref($_[0]) eq "number") }
 
 sub pr_str { string(join ' ', map Printer::pr_str($_), @_) }
@@ -233,6 +257,19 @@ sub pr_str { string(join ' ', map Printer::pr_str($_), @_) }
 sub println { printf "%s\n", join ' ', map Printer::pr_str($_, 1), @_; nil }
 
 sub prn { printf "%s\n", join ' ', map Printer::pr_str($_), @_; nil }
+
+sub range {
+    my ($x, $y) = @_;
+    if (not defined $y) {
+        $y = $x;
+        $x = number(0);
+    }
+    if ($y < $x) {
+        list([map number($_), reverse(($y+1)..$x)]);
+    } else {
+        list([map number($_), $x..($y-1)]);
+    }
+}
 
 sub readline_ {
     require ReadLine;
