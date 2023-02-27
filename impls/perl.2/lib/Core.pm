@@ -52,7 +52,6 @@ sub ns {
         'pr-str' => \&pr_str,
         'println' => \&println,
         'prn' => \&prn,
-        'readline' => \&readline_,
         'read-string' => \&read_string,
         'readline' => \&readline_,
         'reset!' => \&reset,
@@ -60,8 +59,8 @@ sub ns {
         'seq' => \&seq,
         'sequential?' => \&sequential_q,
         'slurp' => \&slurp,
-        'string?' => \&string_q,
         'str' => \&str,
+        'string?' => \&string_q,
         'swap!' => \&swap,
         'symbol' => \&symbol_,
         'symbol?' => \&symbol_q,
@@ -69,10 +68,16 @@ sub ns {
         'time-ms' => \&time_ms,
         'true?' => \&true_q,
         'vals' => \&vals,
+        'vec' => \&vec,
         'vector' => \&vector_,
         'vector?' => \&vector_q,
-        'vec' => \&vec,
         'with-meta' => \&with_meta,
+
+        'PPP' => \&PPP,
+        'WWW' => \&WWW,
+        'XXX' => \&XXX,
+        'YYY' => \&YYY,
+        'ZZZ' => \&ZZZ,
     }
 }
 
