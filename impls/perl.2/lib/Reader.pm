@@ -5,16 +5,16 @@ use Types;
 
 sub new {
     my $class = shift;
-    bless { @_ }, $class;
+    bless {
+        tokens => [],
+        @_,
+    }, $class;
 }
 
 sub read_str {
-    my ($str) = @_;
-    my $tokens = tokenize($str);
-    my $reader = Reader->new(
-        tokens => $tokens,
-    );
-    $reader->read_form;
+    my ($self, $str) = @_;
+    $self->{tokens} = tokenize($str);
+    $self->read_form;
 }
 
 sub tokenize {
@@ -102,7 +102,13 @@ sub read_scalar {
     return nil if $_ eq 'nil';
     return number($_) if /^-?\d+$/;
     return keyword($_) if /^:/;
-    return symbol($_);
+    return $self->read_symbol($_);
+}
+
+# Defined separately to allow subclassing:
+sub read_symbol {
+    my ($self, $symbol) = @_;
+    symbol($symbol);
 }
 
 sub read_quote {

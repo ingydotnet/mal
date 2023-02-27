@@ -10,7 +10,7 @@ my $prompt = 'user> ';
 
 sub Read {
     my ($line) = @_;
-    Reader::read_str($line);
+    Reader->new->read_str($line);
 }
 
 sub Eval {

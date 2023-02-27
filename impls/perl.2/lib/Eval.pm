@@ -45,6 +45,8 @@ sub eval {
             eval_ast(list(\@do), $env);
 #             $ast = $ast;
         } elsif ('fn*' eq $sym) {
+            $a2 = list([symbol('do'), @{$ast}[2..(@$ast-1)] ])
+                if @$ast > 3;
             return function($a1, $a2, $env);
 #             $ast = function($a1, $a2, $env);
 #             return $ast;

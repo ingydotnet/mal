@@ -6,10 +6,14 @@ use Reader;
 use Eval;
 use Printer;
 
+use Exporter 'import';
+
+our @EXPORT = qw< slurp str >;
+
 our %meta;
 
 sub ns {
-    {
+    +{
         '*' => \&multiply,
         '+' => \&add,
         '-' => \&subtract,
@@ -246,7 +250,7 @@ sub readline_ {
     string($l);
 }
 
-sub read_string { Reader::read_str(@_) }
+sub read_string { Reader->new->read_str(@_) }
 
 sub reset { $_[0]->[0] = $_[1] }
 
