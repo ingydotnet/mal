@@ -102,8 +102,15 @@ sub read_scalar {
     return nil if $_ eq 'nil';
     return number($_) if /^-?\d+$/;
     return keyword($_) if /^:/;
-    return symbol($_);
+    return read_symbol($_);
 }
+
+sub read_symbol {
+    my ($symbol) = @_;
+    $symbol =~ s/^(def|defmacro)$/$1\!/;
+    $symbol =~ s/^(catch|fn|let|try)$/$1\*/;
+    symbol($symbol);
+ }
 
 sub read_quote {
     my ($self, $quote) = @_;
