@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -eu
+
+exec ./repl "$(dirname "${BASH_SOURCE[0]}")/${STEP:-stepA_mal}.ys" "$@"
