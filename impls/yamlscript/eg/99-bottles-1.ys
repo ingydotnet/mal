@@ -1,0 +1,17 @@
+main():
+  (let [
+    n (if (seq *ARGV*) (number (first *ARGV*)) 99) ]
+  (println (lyrics n)))))
+
+lyrics(n):
+  (let [
+    numbers (range n 0)
+    paragraphs (map paragraph numbers) ]
+  (join "\n" paragraphs))))
+
+paragraph(num):
+  (str
+    num " bottles of beer on the wall\n"
+    num " bottles of beer\n"
+    "Take one down, pass it around\n"
+    (dec num) " bottles of beer on the wall.\n")))
