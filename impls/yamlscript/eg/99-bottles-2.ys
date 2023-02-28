@@ -1,0 +1,33 @@
+main(n):
+- n =: (if (seq *ARGV*) (number (first *ARGV*)) 99)
+- println(lyrics n)
+
+# lyrics(n):
+# - numbers =: (range n 0)
+# - paragraphs =: (map paragraph numbers))
+# - join:: "\n" paragraphs
+#
+# paragraph(num): ! |
+#   $num bottles of beer on the wall
+#   $num bottles of beer
+#   Take one down, pass it around
+#   $(- num 1) bottles of beer on the wall.
+
+
+
+# main(*):
+# - n =: (if (seq ARGV*)
+#           (num (first *ARGV*))
+#           99)
+# - (println (lyrics n))
+
+lyrics(n):
+- numbers =: (range n 0)
+  paragraphs =: (map paragraph numbers)
+- join("\n" paragraphs)
+
+paragraph(num): ! |
+  $num bottles of beer on the wall
+  $num bottles of beer
+  Take one down, pass it around
+  $(- num 1) bottles of beer on the wall.

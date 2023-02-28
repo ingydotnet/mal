@@ -1,0 +1,25 @@
+main(): (do
+  (def! x 123)
+  (println x)
+  (println x)
+  (println x)
+  )
+
+# main():
+# - x =: 43
+# - println:: \"Hello:" x
+
+# (def! main (fn* ()
+#   (def x 43)
+#   (println "Hello:" x)
+#   (println "Hello:" x)
+#   (println "Hello:" x)
+#   nil
+#   )))
+
+# (def! main (fn* ()
+#   (println "Hello 1")
+#   (println "Hello 2")
+#   (println "Hello 3")
+#   nil
+#   )))

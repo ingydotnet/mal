@@ -1,0 +1,74 @@
+_macro?(x):
+  (if (map? x)
+    (contains? x :__MAL_MACRO__)
+    false)))
+
+core_ns =:
+  \'[
+    * + - / < <= = > >=
+    *ARGV* *file*
+
+    apply
+    assoc
+    atom
+    atom?
+    concat
+    conj
+    cons
+    contains?
+    count
+    dec
+    deref
+    dissoc
+    empty?
+    ends-with?
+    false?
+    first
+    fn?
+    get
+    hash-map
+    join
+    keys
+    keyword
+    keyword?
+    list
+    list?
+    map
+    map?
+    meta
+    nil?
+    nth
+    number
+    number?
+    println
+    prn
+    pr-str
+    range
+    read-file-ys
+    readline
+    read-string
+    reset!
+    rest
+    seq
+    sequential?
+    slurp
+    str
+    string?
+    swap!
+    symbol
+    symbol?
+    throw
+    time-ms
+    true?
+    vals
+    vec
+    vector
+    vector?
+    with-meta
+
+    PPP
+    WWW
+    XXX
+    YYY
+    ZZZ
+  ]
