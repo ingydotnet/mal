@@ -13,7 +13,7 @@ endif
 impl ?= perl.2
 IMPL ?= $(shell basename $(BASE))
 
-ALL_TESTS := $(shell echo test-{{0..9},A})
+ALL_TESTS := $(shell echo test-{{0..4},{6..9},A})
 
 GREP_RESULTS := grep -E '(^TEST RESULTS|: .* tests$$)'
 
@@ -21,6 +21,11 @@ GREP_RESULTS := grep -E '(^TEST RESULTS|: .* tests$$)'
 default:
 
 test:
+	time $(MAKE) test-all BASIC=$(BASIC) |& $(GREP_RESULTS)
+
+test-all: $(ALL_TESTS)
+
+test-eg:
 	#$(MAKE) -C ../$(impl) test
 	:
 	./repl eg/99-bottles.mal 3 >/dev/null
@@ -40,7 +45,7 @@ test:
 test-p2:
 	$(MAKE) -C ../perl.2 test
 
-test-all: test-p2 test
+test-ok: test-p2 test-eg
 
 test-self-host: docker-build
 	time $(MAKE) -C $(ROOT) MAL_IMPL=$(IMPL) test^mal^step{{0..4},{6..9},A} |& \
