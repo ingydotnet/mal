@@ -1,31 +1,22 @@
-;; read
+# main
+main(): (repl-loop "")
 
-(def! READ (fn* [strng]
-  strng))
+# read
+READ(strng): strng
 
-;; eval
+# eval
+EVAL(ast): ast
 
-(def! EVAL (fn* [ast]
-  ast))
+# print
+PRINT(exp): exp
 
-;; print
+# repl
+rep(strng): (PRINT (EVAL (READ strng)))
 
-(def! PRINT (fn* [exp] exp))
-
-;; repl
-
-(def! rep (fn* [strng]
-  (PRINT (EVAL (READ strng)))))
-
-;; repl loop
-
-(def! repl-loop (fn* [line]
+# repl loop
+repl-loop(line):
   (if line
     (do
       (if (not (= "" line))
         (println (rep line)))
       (repl-loop (readline "mal-user> "))))))
-
-;; main
-
-(repl-loop "")

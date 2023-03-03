@@ -7,7 +7,7 @@ package YS::YSReader;
 use YS::Types;
 use YS::Reader;
 
-use IPC::Open2;
+use IPC::Run qw< run timeout >;
 use Scalar::Util 'refaddr';
 
 our %events;
@@ -31,17 +31,11 @@ sub read_file {
     %functions = ();
     %refs = ();
 
-    my $pid = open2(\*IN, \*OUT,
-        qw< fy-tool --testsuite --tsv-format >
-    ) or die "Can't open pipe to fy-tool";
-    print OUT "$text";
-    close OUT;
-    waitpid $pid, 0;
-    die "Error parsing '$file' (rc = $?):\n$@"
-        unless $? == 0;
+    my ($out, $err);
+    run [qw< fy-tool --testsuite --tsv-format >],
+        $text, \$out, \$err, timeout(5);
 
-    my $events = [ map 'event'->new($_), <IN> ];
-    close IN;
+    my $events = [ map 'event'->new($_), split /\n/, $out ];
 
     my $self = bless {
         from => "$file",
@@ -230,7 +224,7 @@ sub try_mal_form($n) {
 }
 
 sub try_scalar_form($n) {
-    $n->{text};
+    S($n->{text});
 }
 
 sub try_assign($n) {
@@ -293,7 +287,7 @@ sub test_ast {
         DEF,
         S('main'),
         L(
-            S('fn*'),
+            FN,
             L,
             L(
                 S('prn'),

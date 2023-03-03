@@ -1,34 +1,28 @@
-;; read
+# main
+main():
+  (let []
+    (repl-loop ""))
 
-(def! READ read-string)
+# read
+READ(str): (read-string str)
 
+# eval
+EVAL(ast): ast
 
-;; eval
+# print
+PRINT(ast): (pr-str ast)
 
-(def! EVAL (fn* [ast]
-  ast))
+# repl
+rep(strng):
+  (PRINT (EVAL (READ strng)))
 
-;; print
-
-(def! PRINT pr-str)
-
-;; repl
-
-(def! rep (fn* [strng]
-  (PRINT (EVAL (READ strng)))))
-
-;; repl loop
-
-(def! repl-loop (fn* [line]
+# repl loop
+repl-loop(line):
   (if line
     (do
       (if (not (= "" line))
-        (try*
+        (try
           (println (rep line))
-          (catch* exc
+          (catch exc
             (println "Uncaught exception:" exc))))
-      (repl-loop (readline "mal-user> "))))))
-
-;; main
-
-(repl-loop "")
+      (repl-loop (readline "mal-user> "))))
