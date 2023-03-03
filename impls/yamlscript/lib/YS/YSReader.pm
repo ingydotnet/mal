@@ -7,7 +7,7 @@ package YS::YSReader;
 use YS::Types;
 use YS::Reader;
 
-use IPC::Open2;
+use IPC::Run qw< run timeout >;
 use Scalar::Util 'refaddr';
 
 our %events;
@@ -31,17 +31,11 @@ sub read_file {
     %functions = ();
     %refs = ();
 
-    my $pid = open2(\*IN, \*OUT,
-        qw< fy-tool --testsuite --tsv-format >
-    ) or die "Can't open pipe to fy-tool";
-    print OUT "$text";
-    close OUT;
-    waitpid $pid, 0;
-    die "Error parsing '$file' (rc = $?):\n$@"
-        unless $? == 0;
+    my ($out, $err);
+    run [qw< fy-tool --testsuite --tsv-format >],
+        $text, \$out, \$err, timeout(5);
 
-    my $events = [ map 'event'->new($_), <IN> ];
-    close IN;
+    my $events = [ map 'event'->new($_), split /\n/, $out ];
 
     my $self = bless {
         from => "$file",
@@ -49,8 +43,8 @@ sub read_file {
         events => $events,
     }, __PACKAGE__;
 
-    my $dom = $self->compose_node;
-    my $ast = mal_ast($dom);
+    my $dom = $self->compose_dom;
+    my $ast = $self->construct_ast($dom);
     return $ast;
 }
 
@@ -67,9 +61,10 @@ sub SEQ { 'seq'->new($E_GROUP, @_) }
 sub VAL { 'val'->new($E_PLAIN, @_) }
 sub STR { 'val'->new($E_QUOTE, @_) }
 
-sub S { symbol($_[0]) }
+sub B { boolean($_[0]) }
 sub L { list([@_]) }
 sub N { number(@_) }
+sub S { symbol($_[0]) }
 sub T { string(@_) }
 
 sub DEF { S 'def!' }
@@ -78,26 +73,26 @@ sub FN { S 'fn*' }
 sub IF { S 'if' }
 sub LET { S 'let*' }
 
-# my $A = qr<[a-zA-Z]>;
-# my $AN = qr<[a-zA-Z0-9]>;
-# my $W = qr<[-a-zA-Z0-9]>;
-# my $sym = qr<$A$W+>;
 my $sym = qr/[-_\w]+\??/;
 
-
+sub read_str($s) { YS::Reader->new->read_str($s) }
 sub error($m) { die "YS Error: $m\n" }
 sub event($n) { $events{refaddr($n)} }
-sub style($n) { event($n)->{styl} }
+sub e_style($n) { event($n)->{styl} }
+sub e_tag($n) { event($n)->{ytag} }
 sub is_map($n) { ref($n) eq 'map' }
 sub is_seq($n) { ref($n) eq 'seq' }
 sub is_val($n) { ref($n) eq 'val' }
 sub is_pair($n) { ref($n) eq 'pair' }
-sub is_plain($n) { is_val($n) and style($n) eq ':' }
+sub is_key($n) { $n->{xkey} }
+sub is_plain($n) { is_val($n) and e_style($n) eq ':' }
 sub is_single($n) { is_map($n) and pairs($n) == 1 }
 sub is_assign($n) {
   is_single($n) and
   text(key(first_pair($n))) =~ /^$sym\s+=$/;
 }
+sub is_def($n) { is_map($n) and tag(key(first_pair($n))) eq 'def' }
+
 sub assert_map($n) { is_map($n) or ZZZ($n) }
 sub assert_seq($n) { is_seq($n) or ZZZ($n) }
 sub assert_val($n) { is_val($n) or ZZZ($n) }
@@ -107,6 +102,7 @@ sub assert_elems($n) { assert_seq($n); @{$n->elem} > 0 or ZZZ($n) }
 sub assert_pairs($n) { assert_map($n); @{$n->pair} > 0 or ZZZ($n) }
 sub pairs($n) { assert_map($n); @{$n->pair} }
 sub elems($n) { assert_seq($n); @{$n->elem} }
+sub tag($n) { $n->{ytag} }
 sub key($p) { assert_pair($p); $p->key }
 sub val($p) { assert_pair($p); $p->val }
 sub key_val($p) { assert_pair($p); @$p }
@@ -115,17 +111,19 @@ sub first_elem($n) { assert_elems($n); (elems($n))[0] }
 sub first_pair($n) { assert_pairs($n); (pairs($n))[0] }
 
 
-sub mal_ast($n) {
+sub construct_ast($s, $n) {
     if (is_val($n)) {
         my $text = $n->{text};
         $n->{text} = "(do\n$text\nnil)";
+
+    } elsif (is_seq($n)) {
+      my $pair = PAIR( VAL('main()') => SEQ(elems($n)) );
+      $pair->[0]{ytag} = 'defn';
+      $n = MAP($pair);
+      $n->{ytag} = 'module';
     }
-    elsif (is_seq($n)) {
-      $n = MAP(
-        PAIR( VAL('main()') => SEQ(elems($n)) ),
-      );
-    }
-    my $ast = get_form($n);
+
+    my $ast = $s->construct($n);
 
     if (has_main($ast)) {
         $ast = L(
@@ -138,127 +136,155 @@ sub mal_ast($n) {
     return $ast;
 }
 
-sub get_form($n) {
-    my $ast = do {
-        if (is_map($n)) {
-            try_assign($n) //
-            try_call($n) //
-            try_module($n) //
-            try_hash($n) //
-            XXX $n;
+sub construct($s, $n) {
+    my $tag = is_pair($n) ? tag(key($n)) : tag($n);
+    my $constructor;
+    if (not $tag) {
+        if (is_seq($n)) {
+            $constructor = 'construct_do';
+        } else {
+            XXX $n, "Node has no tag";
         }
-        elsif (is_seq($n)) {
-        # try_let($n) //
-            try_do($n) //
-            XXX $n;
-        }
-        elsif (is_val($n)) {
-            try_mal_form($n) //
-            try_scalar_form($n) //
-            XXX $n;
-        }
-        else {
-            XXX $n;
-        }
-    };
-    if (ref($ast) eq 'list' and @$ast == 2 and ref($ast->[0]) eq 'symbol' and "$ast->[0]" eq 'do') {
-        $ast = $ast->[1];
+    } else {
+        $constructor = "construct_$tag";
     }
-    $ast;
+    $s->$constructor($n);
 }
 
-sub try_module($n) {
-    my @pairs = pairs($n);
-    for my $p (@pairs) {
-        is_plain($p->[0]) or return;
-    }
-    L(
-        DO,
-        map {
-            try_defn($_) //
-            try_def($_) //
-            XXX $_;
-        } @pairs,
-    );
-}
-
-sub try_call($n) {
-    is_single($n) or return;
-    my $p = first_pair($n);
-    my ($key, $val) = key_val($p);
-    "$key" =~ /^$sym\s*:$/ or return;
-    $key =~ s/:$//;
-    my $op = S($key);
-    if (is_val $val) {
-        my $ast = get_form VAL "( $val\n)";
-        unshift @$ast, $op;
-        return $ast;
-    }
-    else {
-        XXX $val, "Unknown call value";
-    }
-}
-
-sub try_let($n) {
-    return unless is_assign(first_elem($n));
-    my $vars = V();
-    my $let = L(LET, $vars);
-    my @elems = [@$n];
-    while (@elems) {
-        last unless is_assign($elems[0]);
-        my $elem = shift @elems;
-        push @$vars, S(text(key($elem)));
-        push @$vars, get_form(val($elem));
-    }
-    map push(@$let, get_form($_)), @elems;
-    return XXX $let;
-}
-
-sub try_do($n) {
-    L(DO, map get_form($_), @{$n->{elem}});
-}
-
-sub try_val_form($n) {
+sub construct_boolean($s, $n) {
+    "$n" eq 'true' ? true :
+    "$n" eq 'false' ? false :
     die;
 }
 
-sub try_mal_form($n) {
-    my $string = "$n";
-    return unless $string =~ /^([(\\]|-?\d+$)/;
-    $string =~ s/^\\//;
-    YS::Reader->new->read_str($string);
+sub construct_call($s, $n) {
+    (my $expr = "$n") =~ s/^($sym)\(/($1 / or die;
+    read_str($expr);
 }
 
-sub try_scalar_form($n) {
-    $n->{text};
-}
-
-sub try_assign($n) {
-    is_assign($n) or return;
-    my ($key, $val) = key_val(first_pair($n));
-    (my $sym = "$key") =~ s/\s=$//;
-    L( DEF, S($sym), get_form($val) );
-}
-
-sub try_defn($n) {
+sub construct_callpair($s, $n) {
     my ($key, $value) = @$n;
-    text($key) =~ /^($sym)\((.*)\)$/ or return;
+    "$key" =~ /^($sym):?$/ or die;
+    my $fn = $1;
+    $fn =~ s/^(let|try|catch)$/$1*/;
+    L(S($fn), map $s->construct($_), elems($value));
+}
+
+sub construct_catch($s, $p) {
+    L(
+        S('catch*'),
+        map $s->construct($_), elems(val($p)),
+    );
+}
+
+sub construct_def($s, $n) {
+    my ($key, $value) = @$n;
+    "$key" =~ /^($sym)\s*=$/ or die;
+    my $sym = S($1);
+    my $rhs = $s->construct($value);
+    return L(DEF, $sym, $rhs);
+}
+
+sub construct_defn($s, $n) {
+    my ($key, $value) = @$n;
+    text($key) =~ /^($sym)\((.*)\)$/ or die;
     my $name = S($1);
     my $sig = L(map symbol($_), split /\s+/, $2);
     my $defn = L( DEF, S($1), L( FN, L, nil ) );
     my $seq = is_seq($value) ? $value : SEQ($value);
-    my @body =
-    #try_let($seq) //
-        map get_form($_), @{$seq->elem};
+    my @body = is_def(first_elem($seq))
+        ? ($s->construct_let($seq))
+        : map $s->construct($_), @{$seq->elem};
     return L(DEF, $name, L(FN, $sig, @body));
 }
 
-sub try_def($n) {
+sub construct_do($s, $n) {
+    L(
+        DO,
+        map $s->construct($_), elems($n),
+    );
+}
+
+sub construct_if($s, $n) {
     my ($key, $value) = @$n;
-    $key->{text} =~ /^(\w+)\s*=$/ or return;
-    my $sym = S($1);
-    my $rhs = get_form($value);
-    return L(DEF, $sym, $rhs);
+    "$key" =~ /^if +(.*)/ or die;
+    my $cond = read_str($1);
+    L(
+        S('if'),
+        $cond,
+        map $s->construct($_), elems($value),
+    );
+}
+
+sub construct_int($s, $n) { N("$n") }
+
+sub construct_istr($s, $n) {
+    L(
+        S('str'),
+        map {
+            /^\$($sym)$/ ? S($1) :
+            /^\$(\(.*\))$/ ? read_str($1) :
+            T($_)
+        }
+        grep length,
+        split /(\$$sym|\$\(.*?\))/, "$n"
+    );
+}
+
+sub construct_let($s, $n) {
+    my @elems = elems($n);
+    my @defs;
+    while (@elems and is_def($elems[0])) {
+        my $def = $s->construct(shift @elems)->[-1];
+        shift @$def;
+        push @defs, @$def;
+    }
+    L(
+        S('let*'),
+        L(@defs),
+        map $s->construct($_), @elems,
+    );
+}
+
+sub construct_let1($s, $n) {
+    my @elems = elems($n->[1]);
+    my $assigns = shift @elems or die;
+    my $defs = [];
+    if (is_map($assigns)) {
+        for my $pair (pairs($assigns)) {
+            my ($key, $val) = @$pair;
+            $key = "$key";
+            $key =~ s/\ +=$// or die;
+            push @$defs, S($key);
+            push @$defs, $s->construct($val);
+        }
+    } elsif (is_seq($assigns)) {
+        XXX $n;
+    } else {
+        XXX $n;
+    }
+
+    L(
+        S('let*'),
+        $defs,
+        map $s->construct($_), @elems,
+    );
+}
+
+sub construct_lisp($s, $n) {
+    read_str($n);
+}
+
+sub construct_module($s, $n) {
+    L(DO, map $s->construct($_), pairs($n));
+}
+
+sub construct_string($s, $n) {
+    read_str("$n");
+}
+
+sub construct_symbol($s, $n) {
+    S("$n");
 }
 
 sub is_main($n) {
@@ -288,12 +314,12 @@ sub has_main($ast) {
 #------------------------------------------------------------------------------
 
 sub test_ast {
-    return YS::Reader->new->read_str('(def! main (fn* () (prn 999)))');
+    return read_str('(def! main (fn* () (prn 999)))');
     return L(
         DEF,
         S('main'),
         L(
-            S('fn*'),
+            FN,
             L,
             L(
                 S('prn'),
@@ -306,14 +332,24 @@ sub test_ast {
 #------------------------------------------------------------------------------
 # AST Composer Methods
 #------------------------------------------------------------------------------
-sub compose_node {
+sub compose_dom {
     my ($self) = @_;
+    my $node = $self->compose_node('top');
+    return $node;
+}
+
+sub compose_node {
+    my ($self, $flag) = (@_, '');
     my $events = $self->{events};
     while (@$events) {
         my $event = shift(@$events);
         if ($event->{type} =~ /^[+=](map|seq|val|ali)$/) {
             my $composer = "compose_$1";
-            return $self->$composer($event);
+            my $node = $self->$composer($event);
+            $node->{xtop} = 1 if $flag eq 'top';
+            $node->{xkey} = 1 if $flag eq 'key';
+            $self->tag_node($node);
+            return $node;
         }
     }
 }
@@ -324,12 +360,12 @@ sub compose_map {
     my $events = $self->{events};
     while (@$events) {
         shift(@$events), return $map if $events->[0]{type} eq '-map';
-        my $key = $self->compose_node;
+        my $key = $self->compose_node('key');
         my $val = $self->compose_node;
         my $pair = 'pair'->new($key, $val);
         $map->add($pair);
     }
-    XXX $map;
+    XXX $map, "problem composing map";
 }
 
 sub compose_seq {
@@ -341,7 +377,7 @@ sub compose_seq {
         my $elem = $self->compose_node;
         $seq->add($elem);
     }
-    XXX $seq;
+    XXX $seq, "problem composing seq";
 }
 
 sub compose_val {
@@ -352,6 +388,116 @@ sub compose_val {
 sub compose_ali {
     my ($self, $event) = @_;
     'ali'->new($event);
+}
+
+#------------------------------------------------------------------------------
+# AST Tag Resolution Methods
+#------------------------------------------------------------------------------
+
+sub tag_node($s, $n) {
+    local $_ = $n;
+    is_map($n) ? tag_map() :
+    is_seq($n) ? tag_seq() :
+    is_val($n) ? tag_val() :
+    ();
+}
+
+sub tag_error($msg) { ZZZ "$msg: '$_'" }
+
+sub tag_map {
+    for my $pair (pairs($_)) {
+        tag_pair($pair, $_);
+    }
+    $_->{ytag} = 'module';
+}
+
+sub tag_pair {
+    my ($pair, $parent) = @_;
+    local $_ = key($pair);
+    return if $_->{ytag};
+    my $text = "$_";
+    tag_def() or
+    tag_defn() or
+    tag_catch() or
+    tag_let() or
+    tag_callpair($pair) or
+    tag_if() or
+    XXX $pair, "Unable to implicitly tag this map pair.";
+}
+
+sub tag_seq {}
+
+sub tag_val {
+    if (is_plain($_) or e_tag($_) eq '!') {
+        is_key($_) or
+        tag_call() or
+        tag_istr() or
+        tag_json() or
+        tag_lisp() or
+        tag_symbol() or
+        tag_error("Unresolvable plain scalar");
+    } else {
+        $_->{ytag} = 'string';
+    }
+}
+
+sub tag_call {
+    return if is_key($_);
+    $_->{ytag} = 'call' if /^$sym\(.*\)$/;
+}
+
+sub tag_catch {
+    return $_->{ytag} = 'catch' if /^catch$/;
+}
+
+sub tag_let {
+    return $_->{ytag} = 'let1' if /^let$/;
+}
+
+sub tag_callpair {
+    return $_->{ytag} = 'callpair' if /^$sym:$/;
+    my ($pair) = @_;
+    my $val = val($pair);
+    return $_->{ytag} = 'callpair' if /^$sym$/ and is_seq(val($pair));
+}
+
+sub tag_def {
+    $_->{ytag} = 'def' if /^$sym\s*=$/;
+}
+
+sub tag_defn {
+    $_->{ytag} = 'defn' if /^$sym\((.*)\)$/;
+}
+
+sub tag_if {
+    $_->{ytag} = 'if' if /^if +\S/;
+}
+
+sub tag_istr {
+    $_->{ytag} = 'istr' if /(\$$sym|\$\()/;
+}
+
+sub tag_json {
+    $_->{ytag} =
+        /^(true|false)$/ ? 'boolean' :
+        /^-?\d+$/ ? 'int' :
+        /^-?\d+\.\d*$/ ? 'float' :
+        /^null$/ ? 'null' :
+        return;
+}
+
+sub tag_lisp {
+    my $text = $_->{text};
+    $text =~ s/^(?: *;.*\n)+//;
+    $text =~ s/^[ ,]*//;
+    return unless $text =~ /^[\\\(]/;
+    $text =~ s/^\\//;
+    $_->{text} = $text;
+    $_->{ytag} = 'lisp';
+}
+
+sub tag_symbol {
+    $_->{ytag} = 'symbol' if /^$sym$/;
 }
 
 #------------------------------------------------------------------------------
@@ -375,7 +521,7 @@ sub compose_ali {
         bless [$key, $value], $class;
     }
     sub key($p) { $p->[0] }
-    sub val($p) { XXX $p->[1] }
+    sub val($p) { $p->[1] }
 }
 
 {

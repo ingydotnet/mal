@@ -12,8 +12,8 @@ my $base = $Bin;
 @ARGV = ('--shell') unless @ARGV;
 
 my ($shell, $mal, $ys);
-my $eval = '';
-my $run = '';
+my $eval = undef;
+my $run = undef;
 
 GetOptions (
     "shell" => \$shell,
@@ -38,7 +38,7 @@ require YS::REPL;
 
 my $repl = YS::REPL->new;
 
-if ($eval) {
+if (defined $eval) {
     if ($shell) {
         $repl->rep(qq<(do $eval)>);
         $repl->repl;

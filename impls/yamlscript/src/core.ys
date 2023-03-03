@@ -1,7 +1,7 @@
 _macro?(x):
-  (if (map? x)
-    (contains? x :__MAL_MACRO__)
-    false)))
+  if (map? x):
+  - (contains? x :__MAL_MACRO__)
+  - false
 
 core_ns =:
   \'[

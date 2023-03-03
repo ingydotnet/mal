@@ -22,6 +22,7 @@
   (if (empty? xs)
     ()
     (qq-loop (first xs) (qq-foldr (rest xs))))))
+
 (def! QUASIQUOTE (fn* [ast]
   (cond
     (vector? ast)            (list 'vec (qq-foldr ast))

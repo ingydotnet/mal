@@ -41,11 +41,14 @@ test-eg:
 	:
 	./repl eg/99-bottles-2.ys 3 >/dev/null
 	./repl eg/99-bottles-2.ys 3 --ys >/dev/null
+	:
+	./repl eg/99-bottles-3.ys 3 >/dev/null
+	./repl eg/99-bottles-3.ys 3 --ys >/dev/null
 
 test-p2:
 	$(MAKE) -C ../perl.2 test
 
-test-ok: test-p2 test-eg
+test-ok: test test-p2 test-eg
 
 test-self-host: docker-build
 	time $(MAKE) -C $(ROOT) MAL_IMPL=$(IMPL) test^mal^step{{0..4},{6..9},A} |& \

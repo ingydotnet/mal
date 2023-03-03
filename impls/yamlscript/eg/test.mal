@@ -1,1 +1,5 @@
-(println "Hello!")
+(def main (fn [] (foo)))
+
+(def foo (fn [] (prn "ok")))
+
+(main)
