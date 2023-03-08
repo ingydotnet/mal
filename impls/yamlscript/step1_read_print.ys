@@ -20,6 +20,6 @@ repl-loop(line):
   - - if (not (= "" line)):
       - try:
         - println((rep line))
-        - (catch exc
-            (println "Uncaught exception:" exc)))
+        # TODO fix catch in ys
+        - (catch exc (println "Uncaught exception:" exc))
     - repl-loop((readline "mal-user> "))
