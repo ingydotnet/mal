@@ -208,7 +208,9 @@ sub construct_do($s, $n) {
 sub construct_if($s, $n) {
     my ($key, $value) = @$n;
     "$key" =~ /^if +(.*)/ or die;
-    my $cond = read_str($1);
+    my $expr = $1;
+    $expr =~ s/^($sym)\(/($1 /;
+    my $cond = read_str($expr);
     L(
         S('if'),
         $cond,
@@ -418,10 +420,11 @@ sub tag_pair {
     my $text = "$_";
     tag_def() or
     tag_defn() or
-    tag_catch() or
-    tag_let() or
-    tag_callpair($pair) or
     tag_if() or
+    tag_let() or
+    tag_catch() or
+
+    tag_callpair($pair) or
     XXX $pair, "Unable to implicitly tag this map pair.";
 }
 
