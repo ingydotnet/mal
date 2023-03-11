@@ -36,6 +36,7 @@ RUN cpanm -n \
         Term::ReadLine::Gnu \
         Tie::IxHash \
         XXX \
+        YAML::PP \
  && true
 
 ENV PERL5LIB=/mal/impls/yamlscript/lib:/mal/impls/perl.2/lib

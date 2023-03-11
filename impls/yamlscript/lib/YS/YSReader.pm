@@ -7,45 +7,97 @@ package YS::YSReader;
 use YS::Types;
 use YS::Reader;
 
-use IPC::Run qw< run timeout >;
 use Scalar::Util 'refaddr';
 
 our %events;
 our %functions;
 our %refs;
-our @event_keys = (qw<
-    type
-    bpos blin bcol
-    epos elin ecol
-    anch ytag styl
-    valu
->);
 
 #------------------------------------------------------------------------------
 # Convert YAMLScript into a Mal Lisp AST
 #------------------------------------------------------------------------------
 sub read_file {
-    my ($text, $file) = @_;
+    my ($yaml, $file) = @_;
 
     %events = ();
     %functions = ();
     %refs = ();
 
-    my ($out, $err);
-    run [qw< fy-tool --testsuite --tsv-format >],
-        $text, \$out, \$err, timeout(5);
-
-    my $events = [ map 'event'->new($_), split /\n/, $out ];
-
     my $self = bless {
         from => "$file",
-        text => "$text",
-        events => $events,
+        text => "$yaml",
     }, __PACKAGE__;
+
+    $self->{events} = $self->parse_yaml_fy($yaml);
 
     my $dom = $self->compose_dom;
     my $ast = $self->construct_ast($dom);
     return $ast;
+}
+
+our @event_keys = (qw<
+    type
+    bpos blin bcol
+    epos elin ecol
+    anch ytag
+    styl valu
+>);
+
+sub parse_yaml_fy {
+    my ($self, $yaml) = @_;
+
+    require IPC::Run;
+
+    my ($out, $err);
+    IPC::Run::run(
+        [qw< fy-tool --testsuite --tsv-format >],
+        $yaml,
+        \$out,
+        \$err,
+        IPC::Run::timeout(5),
+    );
+
+    [ map 'event'->new($_), split /\n/, $out ];
+}
+
+my $event_dict = {
+    stream_start_event   => '+str',
+    stream_end_event     => '-str',
+    document_start_event => '+doc',
+    document_end_event   => '-doc',
+    mapping_start_event  => '+map',
+    mapping_end_event    => '-map',
+    sequence_start_event => '+seq',
+    sequence_end_event   => '-seq',
+    scalar_event         => '=val',
+    alias_event          => '=ali',
+};
+
+sub parse_yaml_pp {
+    my ($self, $yaml) = @_;
+    require YAML::PP::Parser;
+    my $events = [];
+    YAML::PP::Parser->new(
+        receiver => sub {
+            my ($self, undef, $event) = @_;
+            my @event = (
+                ($event_dict->{$event->{name}} || XXX($event)),
+                0, 0, 0, 0, 0, 0,
+                ($event->{anchor} || '-'),
+                ($event->{tag} || '-'),
+            );
+            if ($event->{name} eq 'scalar_event') {
+                my $value = $event->{value};
+                $value =~ s/\\/\\\\/g;
+                $value =~ s/\n/\\n/g;
+                push @event,
+                    ($event->{style} == 1 ? ':' : '"'),
+                    $value;
+            }
+            push @$events, join "\t", @event;
+        },
+    )->parse_string($yaml);
+    [ map 'event'->new($_), @$events ];
 }
 
 #------------------------------------------------------------------------------
@@ -109,7 +161,6 @@ sub key_val($p) { assert_pair($p); @$p }
 sub text($v) { assert_val($v); $v->{text} }
 sub first_elem($n) { assert_elems($n); (elems($n))[0] }
 sub first_pair($n) { assert_pairs($n); (pairs($n))[0] }
-
 
 sub construct_ast($s, $n) {
     if (is_val($n)) {
