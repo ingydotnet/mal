@@ -17,6 +17,8 @@ ALL_TESTS := $(shell echo test-{{0..4},{6..9},A})
 
 GREP_RESULTS := grep -E '(^TEST RESULTS|: .* tests$$)'
 
+GOT_STDOUT := grep -q .
+
 
 default:
 
@@ -28,22 +30,22 @@ test-all: $(ALL_TESTS)
 test-eg:
 	#$(MAKE) -C ../$(impl) test
 	:
-	./repl eg/99-bottles.mal 3 >/dev/null
-	./repl eg/99-bottles.mal 3 --mal >/dev/null
-	./repl eg/99-bottles.mal 3 --ys >/dev/null
+	./repl eg/99-bottles.mal 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles.mal 3 --mal | $(GOT_STDOUT)
+	./repl eg/99-bottles.mal 3 --ys | $(GOT_STDOUT)
 	:
-	./repl eg/99-bottles-0.ys 3 >/dev/null
-	./repl eg/99-bottles-0.ys 3 --mal >/dev/null
-	./repl eg/99-bottles-0.ys 3 --ys >/dev/null
+	./repl eg/99-bottles-0.ys 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles-0.ys 3 --mal | $(GOT_STDOUT)
+	./repl eg/99-bottles-0.ys 3 --ys | $(GOT_STDOUT)
 	:
-	./repl eg/99-bottles-1.ys 3 >/dev/null
-	./repl eg/99-bottles-1.ys 3 --ys >/dev/null
+	./repl eg/99-bottles-1.ys 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles-1.ys 3 --ys | $(GOT_STDOUT)
 	:
-	./repl eg/99-bottles-2.ys 3 >/dev/null
-	./repl eg/99-bottles-2.ys 3 --ys >/dev/null
+	./repl eg/99-bottles-2.ys 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles-2.ys 3 --ys | $(GOT_STDOUT)
 	:
-	./repl eg/99-bottles-3.ys 3 >/dev/null
-	./repl eg/99-bottles-3.ys 3 --ys >/dev/null
+	./repl eg/99-bottles-3.ys 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles-3.ys 3 --ys | $(GOT_STDOUT)
 
 test-p2:
 	$(MAKE) -C ../perl.2 test

@@ -29,9 +29,11 @@ sub read_file {
     }, __PACKAGE__;
 
     $self->{events} = $self->parse_yaml_fy($yaml);
-
     my $dom = $self->compose_dom;
     my $ast = $self->construct_ast($dom);
+
+    XXX $ast if "$file" eq "eg/99-bottles.mal";
+
     return $ast;
 }
 
@@ -114,6 +116,7 @@ sub VAL { 'val'->new($E_PLAIN, @_) }
 sub STR { 'val'->new($E_QUOTE, @_) }
 
 sub B { boolean($_[0]) }
+sub K { keyword(@_) }
 sub L { list([@_]) }
 sub N { number(@_) }
 sub S { symbol($_[0]) }
@@ -125,7 +128,7 @@ sub FN { S 'fn*' }
 sub IF { S 'if' }
 sub LET { S 'let*' }
 
-my $sym = qr/[-_\w]+\??/;
+my $sym = qr/[-_\w]+[\?\!\*]?/;
 
 sub read_str($s) { YS::Reader->new->read_str($s) }
 sub error($m) { die "YS Error: $m\n" }
@@ -221,13 +224,6 @@ sub construct_callpair($s, $n) {
     L(S($fn), map $s->construct($_), elems($value));
 }
 
-sub construct_catch($s, $p) {
-    L(
-        S('catch*'),
-        map $s->construct($_), elems(val($p)),
-    );
-}
-
 sub construct_def($s, $n) {
     my ($key, $value) = @$n;
     "$key" =~ /^($sym)\s*=$/ or die;
@@ -250,10 +246,15 @@ sub construct_defn($s, $n) {
 }
 
 sub construct_do($s, $n) {
-    L(
-        DO,
-        map $s->construct($_), elems($n),
-    );
+    my @elems = elems($n);
+    if (@elems == 1) {
+        $s->construct($elems[0]);
+    } else {
+        L(
+            DO,
+            map $s->construct($_), @elems,
+        );
+    }
 }
 
 sub construct_if($s, $n) {
@@ -282,6 +283,10 @@ sub construct_istr($s, $n) {
         grep length,
         split /(\$$sym|\$\(.*?\))/, "$n"
     );
+}
+
+sub construct_keyword($s, $n) {
+    K("$n");
 }
 
 sub construct_let($s, $n) {
@@ -333,11 +338,30 @@ sub construct_module($s, $n) {
 }
 
 sub construct_string($s, $n) {
-    read_str("$n");
+    T("$n");
 }
 
 sub construct_symbol($s, $n) {
     S("$n");
+}
+
+sub construct_try($s, $p) {
+    L(
+        S('try*'),
+        map $s->construct($_),
+        map {
+            is_map($_) ? first_pair($_) : $_
+        } elems(val($p)),
+    );
+}
+
+sub construct_catch($s, $p) {
+    key($p) =~ /^catch\(($sym)\)$/ or die;
+    L(
+        S('catch*'),
+        S($1),
+        $s->construct(val($p)),
+    );
 }
 
 sub is_main($n) {
@@ -469,11 +493,12 @@ sub tag_pair {
     local $_ = key($pair);
     return if $_->{ytag};
     my $text = "$_";
+    tag_catch() or
     tag_def() or
     tag_defn() or
     tag_if() or
     tag_let() or
-    tag_catch() or
+    tag_try() or
 
     tag_callpair($pair) or
     XXX $pair, "Unable to implicitly tag this map pair.";
@@ -486,8 +511,8 @@ sub tag_val {
         is_key($_) or
         tag_call() or
         tag_istr() or
-        tag_json() or
         tag_lisp() or
+        tag_scalar() or
         tag_symbol() or
         tag_error("Unresolvable plain scalar");
     } else {
@@ -500,19 +525,15 @@ sub tag_call {
     $_->{ytag} = 'call' if /^$sym\(.*\)$/;
 }
 
-sub tag_catch {
-    return $_->{ytag} = 'catch' if /^catch$/;
-}
-
-sub tag_let {
-    return $_->{ytag} = 'let1' if /^let$/;
-}
-
 sub tag_callpair {
     return $_->{ytag} = 'callpair' if /^$sym:$/;
     my ($pair) = @_;
     my $val = val($pair);
     return $_->{ytag} = 'callpair' if /^$sym$/ and is_seq(val($pair));
+}
+
+sub tag_catch {
+    $_->{ytag} = 'catch' if /^catch\($sym\)$/;
 }
 
 sub tag_def {
@@ -531,13 +552,8 @@ sub tag_istr {
     $_->{ytag} = 'istr' if /(\$$sym|\$\()/;
 }
 
-sub tag_json {
-    $_->{ytag} =
-        /^(true|false)$/ ? 'boolean' :
-        /^-?\d+$/ ? 'int' :
-        /^-?\d+\.\d*$/ ? 'float' :
-        /^null$/ ? 'null' :
-        return;
+sub tag_let {
+    $_->{ytag} = 'let1' if /^let$/;
 }
 
 sub tag_lisp {
@@ -550,8 +566,22 @@ sub tag_lisp {
     $_->{ytag} = 'lisp';
 }
 
+sub tag_scalar {
+    $_->{ytag} =
+        /^(true|false)$/ ? 'boolean' :
+        /^-?\d+$/ ? 'int' :
+        /^-?\d+\.\d*$/ ? 'float' :
+        /^:$sym$/ ? 'keyword' :
+        /^null$/ ? 'null' :
+        return;
+}
+
 sub tag_symbol {
     $_->{ytag} = 'symbol' if /^$sym$/;
+}
+
+sub tag_try {
+    $_->{ytag} = 'try' if /^try$/;
 }
 
 #------------------------------------------------------------------------------
