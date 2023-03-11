@@ -22,20 +22,20 @@ GOT_STDOUT := grep -q .
 
 default:
 
+.PHONY: test
 test:
 	time $(MAKE) test-all BASIC=$(BASIC) |& $(GREP_RESULTS)
+	echo
 
 test-all: $(ALL_TESTS)
 
-test-eg:
-	#$(MAKE) -C ../$(impl) test
+test-repl:
+	./repl -e '(prn :ok)' | $(GOT_STDOUT)
 	:
 	./repl eg/99-bottles.mal 3 | $(GOT_STDOUT)
-	./repl eg/99-bottles.mal 3 --mal | $(GOT_STDOUT)
 	./repl eg/99-bottles.mal 3 --ys | $(GOT_STDOUT)
 	:
 	./repl eg/99-bottles-0.ys 3 | $(GOT_STDOUT)
-	./repl eg/99-bottles-0.ys 3 --mal | $(GOT_STDOUT)
 	./repl eg/99-bottles-0.ys 3 --ys | $(GOT_STDOUT)
 	:
 	./repl eg/99-bottles-1.ys 3 | $(GOT_STDOUT)
@@ -48,9 +48,13 @@ test-eg:
 	./repl eg/99-bottles-3.ys 3 --ys | $(GOT_STDOUT)
 
 test-p2:
-	$(MAKE) -C ../perl.2 test
+	$(MAKE) -C ../$(impl) test
+	echo
 
-test-ok: test test-p2 test-eg
+test-ok: test test-p2 test-repl
+
+test-docker: docker-build
+	$(MAKE) -C $(ROOT) DOCKERIZE=1 test^$(IMPL)
 
 test-self-host: docker-build
 	time $(MAKE) -C $(ROOT) MAL_IMPL=$(IMPL) test^mal^step{{0..4},{6..9},A} |& \

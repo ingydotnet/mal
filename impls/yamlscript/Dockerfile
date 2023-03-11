@@ -32,37 +32,10 @@ RUN apt-get -y install \
  && true
 
 RUN cpanm -n \
+        IPC::Run \
         Term::ReadLine \
         Term::ReadLine::Gnu \
         Tie::IxHash \
         XXX \
         YAML::PP \
- && true
-
-ENV PERL5LIB=/mal/impls/yamlscript/lib:/mal/impls/perl.2/lib
-
-RUN apt-get install --no-install-recommends --fix-missing -y \
-    autoconf \
-    automake \
-    check \
-    debhelper \
-    devscripts \
-    dh-autoreconf \
-    dh-buildinfo \
-    fakeroot \
-    git \
-    gnupg \
-    libltdl-dev \
-    libtool \
-    libyaml-dev \
-    lintian \
-    pkg-config \
-    wget \
- && cd /tmp \
- && git clone https://github.com/pantoniou/libfyaml \
- && cd libfyaml \
- && ./bootstrap.sh \
- && ./configure \
- && make \
- && make install \
  && true

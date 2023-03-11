@@ -177,10 +177,11 @@
 - env-set(repl-env '*ARGV* (rest *ARGV*))
 
 # core.ys: defined using the new language itself
-  # XXX args might work as just a scalar
-- rep:
+- rep:  # XXX args might work as just a scalar
   - str("(def *host-language* \"" *host-language* "-ys\")")
+
 - rep("(def not (fn [a] (if a false true)))")
+
 # - rep("(def load-file (fn (f) (eval (read-string (str \"(do \" (slurp f) \"\nnil)\")))))")
 - rep("
     (def load-file (fn (f)
@@ -195,7 +196,16 @@
         (ends-with? f \".ys\")
           (eval
             (read-file-ys f)))))")
-- rep("(defmacro cond (fn (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))")
+
+- rep("
+    (defmacro cond (fn (& xs)
+      (if (> (count xs) 0)
+        (list
+          'if (first xs)
+            (if (> (count xs) 1)
+              (nth xs 1)
+              (throw \"odd number of forms to cond\"))
+            (cons 'cond (rest (rest xs)))))))")
 
 # repl loop
 - repl-loop(line):

@@ -17,18 +17,12 @@ my $run = undef;
 
 GetOptions (
     "shell" => \$shell,
-    "mal" => \$mal,
     "ys" => \$ys,
     "eval=s" => \$eval,
 ) or die("Error in command line arguments\n");
 
 if (@ARGV) {
-    if ($mal) {
-        unshift @ARGV, "$base/src/ys.mal";
-    }
-    elsif ($ys) {
-        unshift @ARGV, "$base/src/ys.ys";
-    }
+    unshift @ARGV, "$base/src/yamlscript.ys" if $ys;
     $run = $ARGV[0];
 } else {
     unshift @ARGV, 'NO_SOURCE_PATH';

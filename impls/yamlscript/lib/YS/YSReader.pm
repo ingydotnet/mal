@@ -28,11 +28,9 @@ sub read_file {
         text => "$yaml",
     }, __PACKAGE__;
 
-    $self->{events} = $self->parse_yaml_fy($yaml);
+    $self->{events} = $self->parse_yaml_pp($yaml);
     my $dom = $self->compose_dom;
     my $ast = $self->construct_ast($dom);
-
-    XXX $ast if "$file" eq "eg/99-bottles.mal";
 
     return $ast;
 }
