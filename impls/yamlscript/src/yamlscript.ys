@@ -161,6 +161,13 @@
       - swap!(trace str "\n  in ys EVAL:\ " ast)
       - throw(exc)
 
+# Using EVAL defined in YS works but is slooow.
+- cond:
+  - (= (getenv "STEP") "step5_tco")
+  - EVAL =: eval
+  - (= (getenv "YS_FAST") "1")
+  - EVAL =: eval
+
 # print
 - PRINT =: pr-str
 

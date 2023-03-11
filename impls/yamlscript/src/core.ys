@@ -26,6 +26,7 @@ core_ns =:
     first
     fn?
     get
+    getenv
     hash-map
     join
     keys

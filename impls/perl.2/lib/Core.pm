@@ -40,6 +40,7 @@ sub ns {
         'first' => \&first,
         'fn?' => \&fn_q,
         'get' => \&get,
+        'getenv' => \&getenv,
         'hash-map' => \&hash_map_,
         'keys' => \&keys,
         'keyword' => \&keyword_,
@@ -187,6 +188,12 @@ sub get {
     return nil unless ref($map) eq 'hash_map';
     $key = qq<"$key> if $key->isa('string');
     $map->{"$key"} // nil;
+}
+
+sub getenv {
+    my ($var) = @_;
+    my $val = $ENV{$var};
+    defined($val) ? string($val) : nil;
 }
 
 sub greater_equal { $_[0] >= $_[1] }
