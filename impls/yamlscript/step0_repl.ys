@@ -17,5 +17,5 @@ rep(strng): PRINT((EVAL (READ strng)))
 repl-loop(line):
   if line:
   - - if not((= "" line)):
-      - println((rep line)))
+      - println((rep line))
     - repl-loop((readline "mal-user> "))

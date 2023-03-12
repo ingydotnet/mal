@@ -126,9 +126,8 @@ sub FN { S 'fn*' }
 sub IF { S 'if' }
 sub LET { S 'let*' }
 
-my $sym = qr/[-_\w]+[\?\!\*]?/;
+my $sym = qr<[-\w]+[\?\!\*]?>;
 
-sub read_str($s) { YS::Reader->new->read_str($s) }
 sub error($m) { die "YS Error: $m\n" }
 sub event($n) { $events{refaddr($n)} }
 sub e_style($n) { event($n)->{styl} }
@@ -210,8 +209,7 @@ sub construct_boolean($s, $n) {
 }
 
 sub construct_call($s, $n) {
-    (my $expr = "$n") =~ s/^($sym)\(/($1 / or die;
-    read_str($expr);
+    read_ysexpr("$n");
 }
 
 sub construct_callpair($s, $n) {
@@ -258,9 +256,7 @@ sub construct_do($s, $n) {
 sub construct_if($s, $n) {
     my ($key, $value) = @$n;
     "$key" =~ /^if +(.*)/ or die;
-    my $expr = $1;
-    $expr =~ s/^($sym)\(/($1 /;
-    my $cond = read_str($expr);
+    my $cond = read_ysexpr($1);
     L(
         S('if'),
         $cond,
@@ -275,7 +271,7 @@ sub construct_istr($s, $n) {
         S('str'),
         map {
             /^\$($sym)$/ ? S($1) :
-            /^\$(\(.*\))$/ ? read_str($1) :
+            /^\$(\(.*\))$/ ? read_ysexpr($1) :
             T($_)
         }
         grep length,
@@ -328,7 +324,7 @@ sub construct_let1($s, $n) {
 }
 
 sub construct_lisp($s, $n) {
-    read_str($n);
+    read_ysexpr($n);
 }
 
 sub construct_module($s, $n) {
@@ -385,24 +381,116 @@ sub has_main($ast) {
 }
 
 #------------------------------------------------------------------------------
-# AST Construction Methods (to Mal Lisp forms)
+# YS expression reader.
+#
+# Converts these special forms:
+# x(...)        -> (x ...)
+# (x + y)       -> (+ x y)
+# (x + y * z)   -> (+ x (* y z))
+# x(y + z)      -> (x (+ y z))
 #------------------------------------------------------------------------------
 
-sub test_ast {
-    return read_str('(def! main (fn* () (prn 999)))');
-    return L(
-        DEF,
-        S('main'),
-        L(
-            FN,
-            L,
-            L(
-                S('prn'),
-                N(12345),
-            ),
-        ),
-    );
+my $op = qr{(?:[-+*/]|[<>=]=?|and|or)};
+sub tokenize {
+    my $ws = qr<(?:]\s,])>;
+    my $pn = qr<(?:\('\s|~@|[\[\]\{\}\(\)\~^@])>;
+    my $str = qr<"(?:\\.|[^\\"])*"?>;
+    my $tok = qr<[^\s\[\]{}('"`,;)]+>;
+    [ $_[0] =~ /
+        $ws*
+        (
+            $pn |
+            $str |
+            $op(?=\s) |
+            $sym\( |
+            '?$sym |
+            '?$tok
+        )
+    /xog ];
 }
+
+sub read_ysexpr($expr) {
+    return YS::Reader->new->read_str($expr)
+        unless $expr =~ qr<^$sym?\(>;
+
+#     # XXX
+#     use Printer;
+#     my $expr2 = $expr;
+#     $expr2 =~ s/^($sym)\(/($1 /;
+#     my $want = Printer::pr_str(YS::Reader->new->read_str($expr2));
+
+    my $tokens = tokenize($expr);
+    my $self = bless { tokens => $tokens }, __PACKAGE__;
+    my $group = eval {
+        my $group = $self->group;
+        die "Leftover tokens '@$tokens'"
+            if @$tokens;
+        $group;
+    };
+    die "Failed to parser expr '$expr': '$@'" if $@;
+    $expr = $self->group_print($group);
+
+    my $ast = YS::Reader->new->read_str($expr);
+
+#     my $got = Printer::pr_str($ast);
+#     XXX [$want, $got] unless $got eq $want;
+#     return $ast;
+}
+
+sub group($s) {
+    my $tokens = $s->{tokens};
+    my $token = shift @$tokens;
+    $token =~ s/^($sym)\($/$1/ ? $s->group_call($token) :
+    $token =~ /^\('\s$/ ? $s->group_list(1) :
+    $token eq '(' ? $s->group_list(0) :
+    die "Unknown token '$token'";
+}
+
+sub group_list($s, $l) {
+    my $tokens = $s->{tokens};
+    my $group = $s->group_rest;
+    return $group if $l or @$group != 3 or $group->[1] !~ qr<^$op$>;
+
+    # TODO Support infix group > 3
+    [ $group->[1], $group->[0], $group->[2] ];
+}
+
+sub group_call($s, $t) {
+    my $tokens = $s->{tokens};
+    my $group = [$t];
+    my $rest = $s->group_rest;
+    if (@$rest == 3 and $rest->[1] =~ qr<^$op$>) {
+        $rest = [ $rest->[1], $rest->[0], $rest->[2] ];
+        $rest = ([$rest]);
+    }
+    push @$group, @$rest;
+    return $group;
+}
+
+sub group_rest($s) {
+    my $tokens = $s->{tokens};
+    my $rest = [];
+    while (@$tokens) {
+        if ($tokens->[0] eq ')') {
+            shift @$tokens;
+            return $rest;
+        } elsif ($tokens->[0] =~ qr<^$sym?\('?$>) {
+            push @$rest, $s->group;
+        } else {
+            push @$rest, shift @$tokens;
+        }
+    }
+    die "Failed to parse expression";
+}
+
+sub group_print($s, $g) {
+    my $t = '(';
+    for my $e (@$g) {
+        $t .= ' ' . (ref($e) ? $s->group_print($e) : $e);
+    }
+    $t .= ')';
+}
+
 
 #------------------------------------------------------------------------------
 # AST Composer Methods

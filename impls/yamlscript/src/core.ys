@@ -1,6 +1,6 @@
 _macro?(x):
   if (map? x):
-  - (contains? x :__MAL_MACRO__)
+  - contains?(x :__YS_MACRO__)
   - false
 
 core_ns =:

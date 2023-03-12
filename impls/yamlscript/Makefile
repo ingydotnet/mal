@@ -27,6 +27,9 @@ test:
 	time $(MAKE) test-all BASIC=$(BASIC) |& $(GREP_RESULTS)
 	echo
 
+test-expr:
+	prove -l -v test/
+
 test-all: $(ALL_TESTS)
 
 test-repl:
@@ -46,12 +49,16 @@ test-repl:
 	:
 	./repl eg/99-bottles-3.ys 3 | $(GOT_STDOUT)
 	./repl eg/99-bottles-3.ys 3 --ys | $(GOT_STDOUT)
+	:
+	./repl eg/99-bottles-4.ys 3 | $(GOT_STDOUT)
+	./repl eg/99-bottles-4.ys 3 --ys | $(GOT_STDOUT)
+	./repl eg/99-bottles-4.ys --ys | $(GOT_STDOUT)
 
 test-p2:
 	$(MAKE) -C ../$(impl) test
 	echo
 
-test-ok: test test-p2 test-repl
+test-ok: test-expr test test-p2 test-repl
 
 test-docker: docker-build
 	$(MAKE) -C $(ROOT) DOCKERIZE=1 test^$(IMPL)
