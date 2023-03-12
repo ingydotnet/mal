@@ -11,7 +11,7 @@
 # eval
 - qq-loop(elt acc):
   # 2nd 'if' means 'and'
-  - if (if list?(elt) (first(elt) = 'splice-unquote)):
+  - if (if list?(elt) (first(elt) == 'splice-unquote)):
     - list('concat nth(elt 1) acc)
     - list('cons QUASIQUOTE(elt) acc)
 
@@ -34,7 +34,7 @@
     - not(list?(ast))
     - ast
 
-    - (first(ast) = 'unquote)
+    - (first(ast) == 'unquote)
     - nth(ast 1)
 
     - :else
@@ -102,29 +102,29 @@
             - empty?(ast)
             - ast
 
-            - ('def = a0)
+            - ('def == a0)
             - env-set(env (nth ast 1) (EVAL (nth ast 2) env))
 
-            - ('let = a0)
+            - ('let == a0)
             - LET((new-env env) (nth ast 1) (nth ast 2))
 
-            - ('quote = a0)
+            - ('quote == a0)
             - nth(ast 1)
 
-            - ('quasiquoteexpand = a0)
+            - ('quasiquoteexpand == a0)
             - QUASIQUOTE((nth ast 1))
 
-            - ('quasiquote = a0)
+            - ('quasiquote == a0)
             - EVAL((QUASIQUOTE (nth ast 1)) env)
 
-            - ('defmacro = a0)
+            - ('defmacro == a0)
             - env-set(env (nth ast 1)
                 { :__YS_MACRO__ (EVAL (nth ast 2) env) })
 
-            - ('macroexpand = a0)
+            - ('macroexpand == a0)
             - MACROEXPAND(nth(ast 1) env)
 
-            - ('try = a0)
+            - ('try == a0)
             - if (count(ast) < 3):
               - EVAL((nth ast 1) env)
               - try:
@@ -137,16 +137,16 @@
                       - nth(a2 2)
                       - new-env(env [nth(a2 1)] [exc])
 
-            - ('do = a0)
+            - ('do == a0)
             - nth(eval-ast(rest(ast) env) (count(ast) - 2))
 
-            - (= 'if a0)
+            - ('if == a0)
             - if EVAL(nth(ast 1) env):
               - EVAL(nth(ast 2) env)
               - if (count(ast) > 3):
                 - EVAL(nth(ast 3) env)
 
-            - ('fn = a0)
+            - ('fn == a0)
             - fn([& args] EVAL(nth(ast 2) new-env(env (nth ast 1) args)))
 
             - :else
@@ -160,10 +160,10 @@
 
 # Using EVAL defined in YS works but is slooow.
 - cond:
-  - (getenv("STEP") = "step5_tco")
+  - (getenv("STEP") == "step5_tco")
   - EVAL =: eval
 
-  - (getenv("YS_FAST") = "1")
+  - (getenv("YS_FAST") == "1")
   - EVAL =: eval
 
 # print
@@ -217,7 +217,7 @@
 # repl loop
 - repl-loop(line):
     if line:
-    - - if not("" = line):
+    - - if not("" == line):
         - try:
           - println(rep(line))
           - catch(exc):

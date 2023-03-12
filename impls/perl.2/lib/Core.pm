@@ -21,6 +21,7 @@ sub ns {
         '<' => \&less_than,
         '<=' => \&less_equal,
         '=' => \&equal_to,
+        '==' => \&equal_to,
         '>' => \&greater_than,
         '>=' => \&greater_equal,
 

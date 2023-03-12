@@ -5,7 +5,7 @@ _macro?(x):
 
 core_ns =:
   \'[
-    * + - / < <= = > >=
+    * + - / < <= = == > >=
     *ARGV* *file*
 
     apply
