@@ -213,11 +213,12 @@ sub construct_boolean($s, $n) {
     die;
 }
 
-sub construct_callpair($s, $p) {
+sub construct_call($s, $p) {
     my ($key, $value) = @$p;
     "$key" =~ /^($sym):?$/ or die;
     my $fn = $1;
     $fn =~ s/^(let|try|catch)$/$1*/;
+    $value = SEQ($value) unless is_seq($value);
     L(S($fn), map $s->construct($_), elems($value));
 }
 
@@ -587,7 +588,7 @@ sub tag_pair {
     tag_let() or
     tag_try() or
 
-    tag_callpair($pair) or
+    tag_call($pair) or
     XXX $pair, "Unable to implicitly tag this map pair.";
 }
 
@@ -611,11 +612,8 @@ sub tag_val {
     }
 }
 
-sub tag_callpair {
-    return $_->{ytag} = 'callpair' if /^$sym:$/;
-    my ($pair) = @_;
-    my $val = val($pair);
-    return $_->{ytag} = 'callpair' if /^$sym$/ and is_seq(val($pair));
+sub tag_call {
+    $_->{ytag} = 'call' if /^$sym$/;
 }
 
 sub tag_catch {
