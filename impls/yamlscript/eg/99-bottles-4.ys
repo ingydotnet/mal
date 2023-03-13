@@ -10,7 +10,7 @@ lyrics(n):
 - paragraphs =: map(paragraph numbers)
 - join("\n" paragraphs)
 
-paragraph(num): ! |
+paragraph(num): |
   $num bottles of beer on the wall
   $num bottles of beer
   Take one down, pass it around

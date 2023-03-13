@@ -88,10 +88,15 @@ sub parse_yaml_pp {
             );
             if ($event->{name} eq 'scalar_event') {
                 my $value = $event->{value};
+                my $style = $event->{style};
                 $value =~ s/\\/\\\\/g;
                 $value =~ s/\n/\\n/g;
                 push @event,
-                    ($event->{style} == 1 ? ':' : '"'),
+                    (
+                        $style == 1 ? ':' :
+                        $style == 4 ? '|' :
+                        '"'
+                    ),
                     $value;
             }
             push @$events, join "\t", @event;
@@ -138,6 +143,7 @@ sub is_val($n) { ref($n) eq 'val' }
 sub is_pair($n) { ref($n) eq 'pair' }
 sub is_key($n) { $n->{xkey} }
 sub is_plain($n) { is_val($n) and e_style($n) eq ':' }
+sub is_literal($n) { is_val($n) and e_style($n) eq '|' }
 sub is_single($n) { is_map($n) and pairs($n) == 1 }
 sub is_assign($n) {
   is_single($n) and
@@ -148,7 +154,6 @@ sub is_def($n) { is_map($n) and tag(key(first_pair($n))) eq 'def' }
 sub assert_map($n) { is_map($n) or ZZZ($n) }
 sub assert_seq($n) { is_seq($n) or ZZZ($n) }
 sub assert_val($n) { is_val($n) or ZZZ($n) }
-sub assert_plain($n) { is_plain($n) or ZZZ($n) }
 sub assert_pair($n) { is_pair($n) or ZZZ($n) }
 sub assert_elems($n) { assert_seq($n); @{$n->elem} > 0 or ZZZ($n) }
 sub assert_pairs($n) { assert_map($n); @{$n->pair} > 0 or ZZZ($n) }
@@ -168,10 +173,10 @@ sub construct_ast($s, $n) {
         $n->{text} = "(do\n$text\nnil)";
 
     } elsif (is_seq($n)) {
-      my $pair = PAIR( VAL('main()') => SEQ(elems($n)) );
-      $pair->[0]{ytag} = 'defn';
-      $n = MAP($pair);
-      $n->{ytag} = 'module';
+        my $pair = PAIR( VAL('main()') => SEQ(elems($n)) );
+        $pair->[0]{ytag} = 'defn';
+        $n = MAP($pair);
+        $n->{ytag} = 'module';
     }
 
     my $ast = $s->construct($n);
@@ -208,32 +213,28 @@ sub construct_boolean($s, $n) {
     die;
 }
 
-sub construct_call($s, $n) {
-    read_ysexpr("$n");
-}
-
-sub construct_callpair($s, $n) {
-    my ($key, $value) = @$n;
+sub construct_callpair($s, $p) {
+    my ($key, $value) = @$p;
     "$key" =~ /^($sym):?$/ or die;
     my $fn = $1;
     $fn =~ s/^(let|try|catch)$/$1*/;
     L(S($fn), map $s->construct($_), elems($value));
 }
 
-sub construct_def($s, $n) {
-    my ($key, $value) = @$n;
+sub construct_def($s, $p) {
+    my ($key, $value) = @$p;
     "$key" =~ /^($sym)\s*=$/ or die;
     my $sym = S($1);
     my $rhs = $s->construct($value);
     return L(DEF, $sym, $rhs);
 }
 
-sub construct_defn($s, $n) {
-    my ($key, $value) = @$n;
+sub construct_defn($s, $p) {
+    my ($key, $value) = @$p;
     text($key) =~ /^($sym)\((.*)\)$/ or die;
     my $name = S($1);
     my $sig = L(map symbol($_), split /\s+/, $2);
-    my $defn = L( DEF, S($1), L( FN, L, nil ) );
+    my $defn = L( DEF, $name, L( FN, L, nil ) );
     my $seq = is_seq($value) ? $value : SEQ($value);
     my @body = is_def(first_elem($seq))
         ? ($s->construct_let($seq))
@@ -253,8 +254,8 @@ sub construct_do($s, $n) {
     }
 }
 
-sub construct_if($s, $n) {
-    my ($key, $value) = @$n;
+sub construct_if($s, $p) {
+    my ($key, $value) = @$p;
     "$key" =~ /^if +(.*)/ or die;
     my $cond = read_ysexpr($1);
     L(
@@ -323,7 +324,7 @@ sub construct_let1($s, $n) {
     );
 }
 
-sub construct_lisp($s, $n) {
+sub construct_ysexpr($s, $n) {
     read_ysexpr($n);
 }
 
@@ -331,11 +332,11 @@ sub construct_module($s, $n) {
     L(DO, map $s->construct($_), pairs($n));
 }
 
-sub construct_string($s, $n) {
+sub construct_str($s, $n) {
     T("$n");
 }
 
-sub construct_symbol($s, $n) {
+sub construct_sym($s, $n) {
     S("$n");
 }
 
@@ -593,22 +594,21 @@ sub tag_pair {
 sub tag_seq {}
 
 sub tag_val {
-    if (is_plain($_) or e_tag($_) eq '!') {
-        is_key($_) or
-        tag_call() or
+    if (e_tag($_) ne '-') {
+        $_->{ytag} = substr(e_tag($_), 1);
+    } elsif (is_literal($_)) {
         tag_istr() or
-        tag_lisp() or
+        tag_str();
+    } elsif (is_plain($_)) {
+        is_key($_) or
+        tag_istr() or
+        tag_ysexpr() or
         tag_scalar() or
-        tag_symbol() or
+        tag_sym() or
         tag_error("Unresolvable plain scalar");
     } else {
-        $_->{ytag} = 'string';
+        tag_str();
     }
-}
-
-sub tag_call {
-    return if is_key($_);
-    $_->{ytag} = 'call' if /^$sym\(.*\)$/;
 }
 
 sub tag_callpair {
@@ -642,16 +642,6 @@ sub tag_let {
     $_->{ytag} = 'let1' if /^let$/;
 }
 
-sub tag_lisp {
-    my $text = $_->{text};
-    $text =~ s/^(?: *;.*\n)+//;
-    $text =~ s/^[ ,]*//;
-    return unless $text =~ /^[\\\(]/;
-    $text =~ s/^\\//;
-    $_->{text} = $text;
-    $_->{ytag} = 'lisp';
-}
-
 sub tag_scalar {
     $_->{ytag} =
         /^(true|false)$/ ? 'boolean' :
@@ -662,12 +652,28 @@ sub tag_scalar {
         return;
 }
 
-sub tag_symbol {
-    $_->{ytag} = 'symbol' if /^$sym$/;
+sub tag_str {
+    $_->{ytag} = 'str';
+}
+
+sub tag_sym {
+    $_->{ytag} = 'sym' if /^$sym$/;
 }
 
 sub tag_try {
     $_->{ytag} = 'try' if /^try$/;
+}
+
+sub tag_ysexpr {
+    my $text = $_->{text};
+    $text =~ s/^(?: *;.*\n)+//;
+    $text =~ s/^[ ,]*//;
+    return unless
+        $text =~ /^[\\\(]/ or
+        $text =~ /^$sym\(.*\)$/;;
+    $text =~ s/^\\//;
+    $_->{text} = $text;
+    $_->{ytag} = 'ysexpr';
 }
 
 #------------------------------------------------------------------------------
